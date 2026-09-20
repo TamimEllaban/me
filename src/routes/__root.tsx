@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { CartoonCarLoader } from "../components/cartoon-loader";
 
 function NotFoundComponent() {
   return (
@@ -96,7 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -133,8 +135,8 @@ function Splash({ name = "Tamim" }: { name?: string }) {
     } catch {
       /* storage unavailable — still play the splash */
     }
-    const hide = setTimeout(() => setVisible(false), 1400);
-    const remove = setTimeout(() => setGone(true), 1900);
+    const hide = setTimeout(() => setVisible(false), 2000);
+    const remove = setTimeout(() => setGone(true), 2500);
     return () => {
       clearTimeout(hide);
       clearTimeout(remove);
@@ -144,14 +146,14 @@ function Splash({ name = "Tamim" }: { name?: string }) {
   return (
     <div
       aria-hidden
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-background px-6 text-center transition-opacity duration-500 ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 px-6 text-center backdrop-blur-md transition-opacity duration-500 ${visible ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
-      <span className="relative flex size-24 items-center justify-center rounded-full bg-secondary">
-        <Heart className="size-10 animate-pulse fill-primary text-primary" />
-        <Sparkles className="absolute -right-1 -top-1 size-6 text-primary/60" />
-      </span>
-      <p className="mt-2 animate-gentle-in font-display text-3xl">{name}'s World</p>
-      <p className="text-xs text-muted-foreground">A keepsake for the whole family</p>
+      <div className="rounded-3xl border border-border/80 bg-card/95 p-6 sm:p-10 shadow-keepsake backdrop-blur">
+        <CartoonCarLoader
+          title={`${name}'s World`}
+          subtitle="Ka-Chow! جاري تجهيز أحلى الذكريات... 🏎️"
+        />
+      </div>
     </div>
   );
 }
