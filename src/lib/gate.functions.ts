@@ -20,10 +20,12 @@ type FamilySession = { unlocked?: boolean; profileId?: string };
 
 function getSessionConfig() {
   return {
-    password: process.env["SESSION_SECRET"]!,
+    password:
+      process.env["SESSION_SECRET"] ||
+      "tamim-world-family-default-session-secret-key-min-32-chars!",
     name: "family-world",
     maxAge: 60 * 60 * 24 * 30,
-    cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
+    cookie: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" },
   };
 }
 
