@@ -1,7 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Baby, BookHeart, Camera, Home, Mail, Share2, Sprout, Users } from "lucide-react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { Baby, BookHeart, Camera, Home, LogOut, Mail, Share2, Sprout, Users } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { lockSite } from "@/lib/gate.functions";
 
 const tabs = [
   { to: "/" as const, label: "Home", icon: Home },
@@ -19,7 +21,25 @@ export function WorldShell({
   title?: string;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const router = useRouter();
+  const lock = useServerFn(lockSite);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await lock();
+      await router.navigate({ to: "/unlock" });
+      router.invalidate();
+    } catch {
+      window.location.href = "/unlock";
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
@@ -59,6 +79,17 @@ export function WorldShell({
               <span aria-hidden className="text-base">
                 {theme === "light" ? "☾" : "☀"}
               </span>
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Sign out and lock site"
+              title="Sign out / Lock site"
+              disabled={loggingOut}
+              onClick={handleLogout}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+            >
+              <LogOut className={`size-4 ${loggingOut ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </div>

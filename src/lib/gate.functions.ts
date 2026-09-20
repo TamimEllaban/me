@@ -25,7 +25,12 @@ function getSessionConfig() {
       "tamim-world-family-default-session-secret-key-min-32-chars!",
     name: "family-world",
     maxAge: 60 * 60 * 24 * 30,
-    cookie: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" },
+    cookie: {
+      httpOnly: true,
+      secure: process.env["NODE_ENV"] === "production",
+      sameSite: "lax" as const,
+      path: "/",
+    },
   };
 }
 
@@ -59,6 +64,7 @@ export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
 
 export const getUnlockProfiles = createServerFn({ method: "GET" }).handler(async () => ({
   profiles: await getProfiles(),
+  defaultPassword: process.env["SITE_PASSWORD"] ?? "",
 }));
 
 export const getHomeData = createServerFn({ method: "GET" }).handler(async () => {

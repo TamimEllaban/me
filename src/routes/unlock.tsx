@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart, LockKeyhole } from "lucide-react";
+import { Eye, EyeOff, Heart, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import hero from "@/assets/hero-child.jpg";
 import { Button } from "@/components/ui/button";
@@ -23,18 +23,20 @@ export const Route = createFileRoute("/unlock")({
 });
 
 function UnlockPage() {
-  const { profiles } = Route.useLoaderData();
+  const { profiles, defaultPassword } = Route.useLoaderData();
   const unlock = useServerFn(unlockSite);
   const router = useRouter();
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "family");
+  const [password, setPassword] = useState(defaultPassword ?? "");
+  const [showPassword, setShowPassword] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(false);
-    const password = String(new FormData(event.currentTarget).get("password") ?? "");
-    const result = await unlock({ data: { password, profileId } });
+    const pass = password || String(new FormData(event.currentTarget).get("password") ?? "");
+    const result = await unlock({ data: { password: pass, profileId } });
     if (result.ok) await router.navigate({ to: "/" });
     else setError(true);
     setBusy(false);
@@ -94,15 +96,27 @@ function UnlockPage() {
           <label className="text-sm font-semibold" htmlFor="password">
             Family password
           </label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            className="mt-2 h-12"
-            required
-          />
+          <div className="relative mt-2">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-12 pr-11"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
           {error && (
             <p role="alert" className="mt-2 text-sm text-destructive">
               That password doesn’t match. Please try again.
