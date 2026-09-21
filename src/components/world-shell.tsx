@@ -54,11 +54,12 @@ export function WorldShell({
           <div className="flex items-center gap-1">
             <Link
               to="/manage"
-              className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
-              aria-label="Manage family photos"
-              title="Manage photos"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-95"
+              aria-label="Add or change family photos"
+              title="Add or change family photos"
             >
-              <Camera className="size-4" />
+              <Camera className="size-4 text-primary" />
+              <span className="hidden sm:inline">Add photos</span>
             </Link>
             <Button
               size="icon"

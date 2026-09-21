@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { ImagePlus, Mail, Plus } from "lucide-react";
+import { Mail, Plus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,10 +91,6 @@ function LetterForm() {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
-      <Button type="button" variant="outline" className="w-full" onClick={() => setStatus(null)}>
-        <ImagePlus />
-        Add an optional photo
-      </Button>
       <Button type="submit" className="w-full" disabled={busy}>
         {busy ? "Sealing…" : "Seal this letter"}
       </Button>
