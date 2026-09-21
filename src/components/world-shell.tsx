@@ -1,6 +1,17 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Baby, BookHeart, Camera, Home, LogOut, Mail, Share2, Sprout, Users } from "lucide-react";
+import {
+  Baby,
+  BookHeart,
+  Camera,
+  Clapperboard,
+  Home,
+  LogOut,
+  Mail,
+  Share2,
+  Sprout,
+  Users,
+} from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { lockSite } from "@/lib/gate.functions";
@@ -8,6 +19,7 @@ import { lockSite } from "@/lib/gate.functions";
 const tabs = [
   { to: "/" as const, label: "Home", icon: Home },
   { to: "/memories" as const, label: "Memories", icon: BookHeart },
+  { to: "/gallery" as const, label: "Gallery", icon: Clapperboard },
   { to: "/family-tree" as const, label: "Family", icon: Sprout },
   { to: "/relatives" as const, label: "Relatives", icon: Users },
   { to: "/letters" as const, label: "Letters", icon: Mail },
@@ -100,7 +112,7 @@ export function WorldShell({
         aria-label="Main navigation"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:left-1/2 md:bottom-5 md:w-fit md:-translate-x-1/2 md:rounded-full md:border md:px-2 md:shadow-keepsake"
       >
-        <div className="mx-auto grid h-[4.75rem] max-w-lg grid-cols-5 md:h-16 md:w-[31rem]">
+        <div className="mx-auto grid h-[4.75rem] max-w-lg grid-cols-6 md:h-16 md:w-[38rem]">
           {tabs.map(({ to, label, icon: Icon }) => {
             const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
             return (

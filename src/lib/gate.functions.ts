@@ -15,6 +15,7 @@ import {
 } from "./db";
 import { deleteFamilyImage, listFamilyImages, uploadFamilyImage } from "./cloudinary.server";
 import { getChild, getLetters, getMemories, getProfiles, getRelatives } from "./world-data.server";
+import mediaCatalog from "./media-catalog.json";
 
 type FamilySession = { unlocked?: boolean; profileId?: string };
 
@@ -91,6 +92,56 @@ export const getRelativesData = createServerFn({ method: "GET" }).handler(async 
 export const getLettersData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
   return { child: await getChild(), letters: await getLetters() };
+});
+
+// --- Media gallery (from the Cloudinary library catalog) ---
+
+export type GalleryItem = {
+  id: string;
+  kind: "image" | "video";
+  sourceName: string;
+  category: string;
+  date: string;
+  url: string;
+  thumb: string;
+};
+
+function optimizeUrl(url: string, width: number): string {
+  if (!/res\.cloudinary\.com/.test(url)) return url;
+  return url.replace("/image/upload/", `/image/upload/w_${width},f_auto,q_auto/`);
+}
+
+function videoThumbUrl(url: string): string {
+  if (!/res\.cloudinary\.com/.test(url)) return url;
+  return url.replace("/video/upload/", "/video/upload/so_1,f_jpg,q_auto,w_800/");
+}
+
+export type GalleryCategory = { name: string; items: GalleryItem[] };
+
+export const getGalleryData = createServerFn({ method: "GET" }).handler(async () => {
+  await requireUnlocked();
+  const raw = (mediaCatalog as { items: GalleryItem[] }).items;
+  const items: GalleryItem[] = raw.map((item) => ({
+    ...item,
+    thumb: item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640),
+  }));
+  items.sort(
+    (a, b) =>
+      a.category.localeCompare(b.category) ||
+      (b.date || "").localeCompare(a.date || "") ||
+      a.sourceName.localeCompare(b.sourceName, "ar"),
+  );
+  const categories: GalleryCategory[] = [];
+  for (const item of items) {
+    const last = categories[categories.length - 1];
+    if (last && last.name === item.category) last.items.push(item);
+    else categories.push({ name: item.category, items: [item] });
+  }
+  const counts = {
+    images: items.filter((i) => i.kind === "image").length,
+    videos: items.filter((i) => i.kind === "video").length,
+  };
+  return { categories, counts };
 });
 
 // --- Family admin: Cloudinary photo upload / delete + wiring into the site ---

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FamilyTreeRouteImport } from './routes/family-tree'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LettersRouteImport } from './routes/letters'
 import { Route as ManageRouteImport } from './routes/manage'
 import { Route as MemoriesRouteImport } from './routes/memories'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const FamilyTreeRoute = FamilyTreeRouteImport.update({
   id: '/family-tree',
   path: '/family-tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LettersRoute = LettersRouteImport.update({
@@ -56,6 +62,7 @@ const UnlockRoute = UnlockRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/family-tree': typeof FamilyTreeRoute
+  '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
   '/manage': typeof ManageRoute
   '/memories': typeof MemoriesRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/family-tree': typeof FamilyTreeRoute
+  '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
   '/manage': typeof ManageRoute
   '/memories': typeof MemoriesRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/family-tree': typeof FamilyTreeRoute
+  '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
   '/manage': typeof ManageRoute
   '/memories': typeof MemoriesRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/family-tree'
+    | '/gallery'
     | '/letters'
     | '/manage'
     | '/memories'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/family-tree'
+    | '/gallery'
     | '/letters'
     | '/manage'
     | '/memories'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/family-tree'
+    | '/gallery'
     | '/letters'
     | '/manage'
     | '/memories'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FamilyTreeRoute: typeof FamilyTreeRoute
+  GalleryRoute: typeof GalleryRoute
   LettersRoute: typeof LettersRoute
   ManageRoute: typeof ManageRoute
   MemoriesRoute: typeof MemoriesRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/family-tree'
       fullPath: '/family-tree'
       preLoaderRoute: typeof FamilyTreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/letters': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FamilyTreeRoute: FamilyTreeRoute,
+  GalleryRoute: GalleryRoute,
   LettersRoute: LettersRoute,
   ManageRoute: ManageRoute,
   MemoriesRoute: MemoriesRoute,
