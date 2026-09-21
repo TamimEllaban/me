@@ -67,6 +67,7 @@ export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
 
 export const getUnlockProfiles = createServerFn({ method: "GET" }).handler(async () => ({
   profiles: await getProfiles(),
+  child: await getChild(),
   defaultPassword: process.env["SITE_PASSWORD"] ?? "",
 }));
 

@@ -23,7 +23,7 @@ export const Route = createFileRoute("/unlock")({
 });
 
 function UnlockPage() {
-  const { profiles, defaultPassword } = Route.useLoaderData();
+  const { profiles, child, defaultPassword } = Route.useLoaderData();
   const unlock = useServerFn(unlockSite);
   const router = useRouter();
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "family");
@@ -31,6 +31,7 @@ function UnlockPage() {
   const [showPassword, setShowPassword] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const heroImage = child.hero_image ?? hero;
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -45,7 +46,7 @@ function UnlockPage() {
     <main className="grid min-h-screen bg-background lg:grid-cols-2">
       <div className="relative min-h-[37vh] overflow-hidden lg:min-h-screen">
         <img
-          src={hero}
+          src={heroImage}
           alt="A happy child in a sunlit room"
           width={1200}
           height={1504}
@@ -69,7 +70,7 @@ function UnlockPage() {
             <h1 className="font-display text-4xl">
               Welcome to
               <br />
-              Tamim's World
+              {child.name}'s World
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               Choose who’s visiting, then enter your family password.
