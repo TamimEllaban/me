@@ -26,6 +26,10 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Local media library (too large for git; served via Cloudinary)
+images and videos/
+media-compressed/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
