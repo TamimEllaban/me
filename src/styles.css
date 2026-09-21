@@ -232,3 +232,170 @@
     color: var(--color-foreground);
   }
 }
+
+/*
+ * Family tree connectors.
+ *
+ * `.ftree` is the classic org-chart bus pattern (nested ul/li): a vertical
+ * stem drops from the midpoint of a couple down to a horizontal bus, then
+ * short drops go into the top centre of each child card. Lines are 2px in
+ * the branch colour (~40% opacity, rounded elbows), drawn in the transparent
+ * padding area so cards (higher z-index) never sit on top of lines.
+ *
+ * `.mftree` is the mobile indented tree: children are stacked and indented,
+ * with a continuous vertical rail on the right (RTL) and a short elbow into
+ * each card.
+ */
+.ftree {
+  position: relative;
+}
+
+.ftree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  padding-top: 22px;
+}
+
+.ftree li {
+  list-style: none;
+  position: relative;
+  text-align: center;
+  padding: 22px 8px 0;
+}
+
+.ftree li::before,
+.ftree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 22px;
+  border-top: 2px solid var(--ftree-line);
+  pointer-events: none;
+}
+
+.ftree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--ftree-line);
+}
+
+.ftree li:only-child::before,
+.ftree li:only-child::after {
+  display: none;
+}
+
+.ftree li:only-child {
+  padding-top: 0;
+}
+
+.ftree li:first-child::before,
+.ftree li:last-child::after {
+  border: 0 none;
+}
+
+.ftree li:last-child::before {
+  border-right: 2px solid var(--ftree-line);
+  border-radius: 0 12px 0 0;
+}
+
+.ftree li:first-child::after {
+  border-radius: 12px 0 0 0;
+}
+
+.ftree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 22px;
+  border-left: 2px solid var(--ftree-line);
+  pointer-events: none;
+}
+
+.ftree li > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mftree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mftree ul ul {
+  position: relative;
+  margin-top: 14px;
+  padding-right: 30px;
+}
+
+.mftree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 8px;
+  right: 12px;
+  width: 2px;
+  background: var(--ftree-line);
+  pointer-events: none;
+}
+
+.mftree > ul {
+  padding-left: 0;
+}
+
+.mftree li {
+  list-style: none;
+  position: relative;
+  padding-right: 30px;
+}
+
+.mftree > ul > li {
+  padding-right: 0;
+}
+
+.mftree ul ul > li::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 18px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 2px;
+  background: var(--ftree-line);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ftree-fade {
+    animation: none !important;
+  }
+  .mftree,
+  .ftree,
+  .ftree * {
+    transition: none !important;
+  }
+}
+
+.ftree-fade {
+  animation: gentle-in 0.5s ease-out both;
+}
+
+@media (min-width: 1024px) {
+  .ftree-row {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .ftree-row > li {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

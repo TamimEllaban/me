@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { GitBranch, Minus, Pencil, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from "react";
 import {
   RelativeFormDialog,
   RemoveRelativeButton,
@@ -15,6 +15,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PageIntro, WorldShell } from "@/components/world-shell";
+import { DEFAULT_RELATIVE_IMAGE } from "@/lib/db";
+import {
+  buildFamilyData,
+  type FamilyBranch,
+  type FamilyCouple,
+  type FamilyPerson,
+} from "@/lib/family-data";
 import { getFamilyData } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/family-tree")({
@@ -32,80 +39,182 @@ export const Route = createFileRoute("/family-tree")({
   component: FamilyTreePage,
 });
 
-type Tone = "paternal" | "maternal";
+type Tone = "dad" | "mom";
+type PersonSize = "grandparent" | "parent" | "cousin" | "chip";
 
-const byId =
-  (relatives: RelativeLike[]) =>
-  (id?: string | null): RelativeLike | undefined =>
-    id ? relatives.find((p) => p.id === id) : undefined;
+type TreeCtx = {
+  relatives: RelativeLike[];
+  onDone: () => void;
+};
 
-const safeSpouse = (root: RelativeLike, spouse?: RelativeLike) =>
-  spouse && spouse.id !== root.id ? spouse : undefined;
+const TreeContext = createContext<TreeCtx>({ relatives: [], onDone: () => undefined });
+
+const toneCfg = {
+  dad: {
+    line: "color-mix(in srgb, var(--color-primary) 40%, transparent)",
+    ring: "ring-primary/60",
+    soft: "bg-primary/10 text-primary",
+    pill: "bg-primary text-primary-foreground",
+    badge: "bg-accent text-accent-foreground",
+    panel: "border-primary/20",
+    dashed: "border-primary/40",
+    dot: "bg-primary",
+  },
+  mom: {
+    line: "color-mix(in srgb, var(--color-accent) 45%, transparent)",
+    ring: "ring-accent/70",
+    soft: "bg-accent/15 text-accent-foreground",
+    pill: "bg-accent text-accent-foreground",
+    badge: "bg-primary text-primary-foreground",
+    panel: "border-accent/30",
+    dashed: "border-accent/50",
+    dot: "bg-accent",
+  },
+} as const;
+
+const avatarPx: Record<PersonSize, number> = {
+  grandparent: 64,
+  parent: 56,
+  cousin: 48,
+  chip: 40,
+};
+
+const cardWidth: Record<PersonSize, string> = {
+  grandparent: "w-28",
+  parent: "w-28",
+  cousin: "w-24",
+  chip: "w-20",
+};
+
+const nameSize: Record<PersonSize, string> = {
+  grandparent: "text-[15px]",
+  parent: "text-[15px]",
+  cousin: "text-[15px]",
+  chip: "text-sm",
+};
+
+function Avatar({
+  src,
+  name,
+  px,
+  ringCls,
+  softCls,
+}: {
+  src?: string | undefined;
+  name: string;
+  px: number;
+  ringCls: string;
+  softCls: string;
+}) {
+  const initials = name.trim().charAt(0) || "؟";
+  return (
+    <span
+      className={`grid shrink-0 place-items-center overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-card ${ringCls}`}
+      style={{ width: px, height: px }}
+    >
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          width={500}
+          height={500}
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span className={`grid h-full w-full place-items-center font-display text-2xl ${softCls}`}>
+          {initials}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function PersonCard({
   person,
-  relatives,
-  onRefresh,
-  compact,
+  size,
   tone,
+  highlighted,
+  nodeId,
+  onFocus,
+  roleBadge,
 }: {
-  person: RelativeLike;
-  relatives: RelativeLike[];
-  onRefresh: () => void;
-  compact?: boolean;
-  tone?: Tone | undefined;
+  person: FamilyPerson;
+  size: PersonSize;
+  tone: Tone;
+  highlighted?: boolean;
+  nodeId?: string | undefined;
+  onFocus?: (() => void) | undefined;
+  roleBadge?: boolean | undefined;
 }) {
-  const tinted =
-    tone === "maternal"
-      ? "bg-accent/10 ring-1 ring-accent/40"
-      : tone === "paternal"
-        ? "bg-primary/5 ring-1 ring-primary/30"
-        : "";
+  const cfg = toneCfg[tone];
+  const ctx = useContext(TreeContext);
+  const px = avatarPx[size];
+  const { name, role } = person;
+  const label = `${role} ${name}`;
+  const hasPhoto = person.relative.image && person.relative.image !== DEFAULT_RELATIVE_IMAGE;
+
+  const inner = (
+    <span className="relative flex w-full flex-col items-center">
+      <span className="relative block">
+        <Avatar
+          src={hasPhoto ? person.relative.image : undefined}
+          name={name}
+          px={px}
+          ringCls={highlighted ? "ring-primary" : cfg.ring}
+          softCls={cfg.soft}
+        />
+        {roleBadge && (
+          <span
+            className={`absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-px text-xs font-bold shadow-soft ${cfg.badge}`}
+          >
+            {role}
+          </span>
+        )}
+      </span>
+      <b className={`mt-1.5 font-display font-semibold leading-snug ${nameSize[size]}`}>{name}</b>
+      <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{role}</span>
+    </span>
+  );
+
+  const cardCls = `relative z-[1] flex min-h-11 flex-col items-center justify-start rounded-2xl border bg-card p-3 text-center shadow-soft transition-transform select-none ${
+    highlighted ? "border-primary ring-2 ring-primary/60" : "border-border"
+  } ${cardWidth[size]} active:scale-95`;
+
+  if (onFocus) {
+    return (
+      <button type="button" id={nodeId} onClick={onFocus} aria-label={label} className={cardCls}>
+        {inner}
+      </button>
+    );
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button
-          className={`relative z-10 flex shrink-0 flex-col items-center rounded-lg border border-border bg-card p-3 shadow-soft transition active:scale-95 ${
-            compact ? "w-20" : "w-28"
-          } ${tinted}`}
-        >
-          <img
-            src={person.image}
-            alt=""
-            width={1200}
-            height={912}
-            loading="lazy"
-            className={`rounded-full object-cover ${compact ? "size-9" : "size-14"}`}
-          />
-          <b
-            className={`mt-2 text-center font-display ${compact ? "text-[0.68rem] leading-tight" : ""}`}
-          >
-            {person.name}
-          </b>
-          <span
-            className={`text-center text-primary ${compact ? "text-[0.55rem]" : "text-[0.68rem]"}`}
-          >
-            {person.relationship}
-          </span>
+        <button type="button" id={nodeId} aria-label={label} className={cardCls}>
+          {inner}
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
-        <img
-          src={person.image}
-          alt=""
-          width={1200}
-          height={912}
-          className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
-        />
+        {hasPhoto && (
+          <img
+            src={person.relative.image}
+            alt=""
+            width={1200}
+            height={912}
+            className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
+          />
+        )}
         <DialogTitle className="font-display text-3xl">{person.name}</DialogTitle>
-        <p className="text-sm font-semibold text-primary">{person.relationship}</p>
-        <DialogDescription className="leading-6">{person.bio}</DialogDescription>
+        <p className="text-sm font-semibold text-primary">{person.role}</p>
+        <DialogDescription className="leading-6">{person.relative.bio}</DialogDescription>
         <div className="flex flex-wrap gap-2">
           <RelativeFormDialog
             mode="child"
-            parent={person}
-            relatives={relatives}
-            onDone={onRefresh}
+            parent={person.relative}
+            relatives={ctx.relatives}
+            onDone={ctx.onDone}
             trigger={
               <Button size="sm">
                 <GitBranch className="size-4" /> Add branch
@@ -114,9 +223,9 @@ function PersonCard({
           />
           <RelativeFormDialog
             mode="edit"
-            person={person}
-            relatives={relatives}
-            onDone={onRefresh}
+            person={person.relative}
+            relatives={ctx.relatives}
+            onDone={ctx.onDone}
             trigger={
               <Button size="sm" variant="secondary">
                 <Pencil className="size-4" /> Edit
@@ -124,8 +233,8 @@ function PersonCard({
             }
           />
           <RemoveRelativeButton
-            person={person}
-            onDone={onRefresh}
+            person={person.relative}
+            onDone={ctx.onDone}
             trigger={
               <Button size="sm" variant="secondary" className="text-destructive">
                 <Trash2 className="size-4" /> Remove
@@ -138,358 +247,505 @@ function PersonCard({
   );
 }
 
-function TamimHeart({ name }: { name: string }) {
-  return (
-    <div className="relative z-10 rounded-2xl border-2 border-primary bg-secondary px-8 py-5 text-center shadow-keepsake">
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider text-primary-foreground">
-        قلب الشجرة
-      </div>
-      <span className="text-3xl text-primary">♡</span>
-      <b className="mt-1 block font-display text-2xl">{name}</b>
-      <span className="text-xs text-muted-foreground">تجمعنا كلنا في حبك</span>
-    </div>
-  );
-}
-
 function CoupleRow({
-  person,
-  spouse,
-  relatives,
-  onRefresh,
+  couple,
+  size,
   tone,
+  hero,
+  onPersonFocus,
+  flashId,
+  roleBadge,
 }: {
-  person: RelativeLike;
-  spouse?: RelativeLike | undefined;
-  relatives: RelativeLike[];
-  onRefresh: () => void;
-  tone?: Tone | undefined;
+  couple: FamilyCouple;
+  size: PersonSize;
+  tone: Tone;
+  hero?: boolean;
+  onPersonFocus?: (person: FamilyPerson) => void;
+  flashId?: string | null | undefined;
+  roleBadge?: boolean | undefined;
 }) {
+  const cfg = toneCfg[tone];
+  const heartMt = avatarPx[size] / 2 + 2;
+  const card = (person: FamilyPerson) => (
+    <PersonCard
+      person={person}
+      size={size}
+      tone={tone}
+      highlighted={flashId === person.id}
+      nodeId={hero ? undefined : `ftree-${person.id}`}
+      onFocus={hero && onPersonFocus ? () => onPersonFocus(person) : undefined}
+      roleBadge={roleBadge && person.isTamimParent}
+    />
+  );
+
   return (
-    <div className="flex items-stretch justify-center">
-      <PersonCard person={person} relatives={relatives} onRefresh={onRefresh} tone={tone} />
-      {spouse && (
+    <div className="flex items-start justify-center">
+      {card(couple.person)}
+      {couple.spouse && (
         <>
-          <div className="flex w-7 flex-col items-center self-start pt-[2.2rem]">
-            <div className="h-[3px] w-5 rounded bg-primary/40" />
-            <span className="my-px text-[0.6rem] text-primary">♥</span>
-            <div className="h-[3px] w-5 rounded bg-primary/40" />
+          <div
+            className="flex w-7 flex-col items-center gap-1.5"
+            style={{ marginTop: heartMt }}
+            aria-hidden="true"
+          >
+            <div className="h-[2px] w-full rounded-full" style={{ background: cfg.line }} />
+            <span
+              className={`grid size-5 place-items-center rounded-full text-xs leading-none ${cfg.pill}`}
+            >
+              ♥
+            </span>
+            <div className="h-[2px] w-full rounded-full" style={{ background: cfg.line }} />
           </div>
-          <PersonCard person={spouse} relatives={relatives} onRefresh={onRefresh} tone={tone} />
+          {card(couple.spouse)}
         </>
       )}
     </div>
   );
 }
 
-function SiblingRibbon({
+function TamimHero({
+  name,
+  subtitle,
+  image,
+}: {
+  name: string;
+  subtitle: string;
+  image?: string | null | undefined;
+}) {
+  return (
+    <div className="relative z-[1] inline-flex flex-col items-center rounded-3xl border border-border/70 bg-card px-8 py-5 text-center shadow-keepsake">
+      <span className="rounded-full bg-gradient-to-tr from-primary via-primary/80 to-accent p-[3px]">
+        <Avatar
+          src={image ?? undefined}
+          name={name}
+          px={96}
+          ringCls="ring-transparent"
+          softCls="bg-primary/10 text-primary"
+        />
+      </span>
+      <b className="mt-3 font-display text-[28px] font-semibold leading-tight">{name}</b>
+      <span className="mt-1 text-sm text-muted-foreground">{subtitle}</span>
+    </div>
+  );
+}
+
+function BranchHeader({ branch, tone }: { branch: FamilyBranch; tone: Tone }) {
+  const cfg = toneCfg[tone];
+  return (
+    <div className="flex flex-col items-center gap-1 text-center">
+      <span
+        className={`rounded-full px-5 py-1.5 font-display text-lg font-bold shadow-soft ${cfg.pill}`}
+      >
+        {branch.title}
+      </span>
+      <span className="text-xs text-muted-foreground">{branch.subtitle}</span>
+    </div>
+  );
+}
+
+function SiblingChips({
   label,
   people,
-  relatives,
-  onRefresh,
   tone,
 }: {
   label: string;
-  people: RelativeLike[];
-  relatives: RelativeLike[];
-  onRefresh: () => void;
+  people: FamilyPerson[];
   tone: Tone;
 }) {
-  if (people.length === 0) return null;
+  const cfg = toneCfg[tone];
+  const [open, setOpen] = useState(people.length <= 3);
+  const shown = open ? people : people.slice(0, 3);
+  const hidden = people.length - shown.length;
+
   return (
-    <div className="w-full rounded-xl border border-dashed border-border bg-background/40 p-3">
-      <p className="mb-2 text-center text-[0.7rem] font-semibold text-primary">{label}</p>
-      <div className="flex flex-wrap justify-center gap-2">
-        {people.map((p) => (
-          <PersonCard
-            key={p.id}
-            person={p}
-            relatives={relatives}
-            onRefresh={onRefresh}
-            compact
-            tone={tone}
-          />
+    <div className="flex flex-col items-center gap-1.5">
+      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.soft}`}>
+        {label}
+      </span>
+      <div className="flex flex-wrap items-start justify-center gap-1.5 lg:flex-col lg:items-center">
+        {shown.map((p) => (
+          <PersonCard key={p.id} person={p} size="chip" tone={tone} />
         ))}
       </div>
-    </div>
-  );
-}
-
-function CoupleNode({
-  person,
-  spouse,
-  relatives,
-  onRefresh,
-  skipIds,
-  ribbons,
-  tone,
-}: {
-  person: RelativeLike;
-  spouse?: RelativeLike | undefined;
-  relatives: RelativeLike[];
-  onRefresh: () => void;
-  skipIds: Set<string>;
-  ribbons: { label: string; people: RelativeLike[] }[];
-  tone?: Tone | undefined;
-}) {
-  const find = byId(relatives);
-  const ids = new Set<string>([person.id, ...(spouse ? [spouse.id] : [])]);
-  const kids = relatives.filter((r) => r.parentId && ids.has(r.parentId) && !skipIds.has(r.id));
-  const visibleRibbons = ribbons.filter((rib) => rib.people.length > 0);
-
-  return (
-    <div className="flex w-full flex-col items-center">
-      <CoupleRow
-        person={person}
-        spouse={spouse}
-        relatives={relatives}
-        onRefresh={onRefresh}
-        tone={tone}
-      />
-      {visibleRibbons.length > 0 && (
-        <div className="mt-4 flex w-full flex-col gap-3">
-          {visibleRibbons.map((rib, i) => (
-            <SiblingRibbon
-              key={i}
-              label={rib.label}
-              people={rib.people}
-              relatives={relatives}
-              onRefresh={onRefresh}
-              tone={tone ?? "paternal"}
-            />
-          ))}
-        </div>
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+        >
+          +{hidden} أكتر
+        </button>
       )}
-      {kids.length > 0 && (
-        <>
-          <div className="mt-6 h-6 w-px bg-primary/35" />
-          <div className="max-w-xs rounded-[3px] border-t-2 border-primary/35" />
-          <div className="mt-0 flex flex-wrap justify-center gap-8">
-            {kids.map((k) => (
-              <div key={k.id} className="border-t-2 border-primary/35 pt-4">
-                <CoupleNode
-                  person={k}
-                  spouse={safeSpouse(k, find(k.spouseId))}
-                  relatives={relatives}
-                  onRefresh={onRefresh}
-                  skipIds={new Set()}
-                  ribbons={[]}
-                  tone={tone}
-                />
-              </div>
-            ))}
-          </div>
-        </>
+      {open && people.length > 3 && (
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-xs font-semibold text-muted-foreground underline decoration-dotted underline-offset-2"
+        >
+          إظهار أقل
+        </button>
       )}
     </div>
   );
 }
 
-function FamilySide({
-  title,
-  subtitle,
+function ChildrenBus({ children }: { children: ReactNode }) {
+  return <ul className="ftree">{children}</ul>;
+}
+
+function BranchPanel({
+  branch,
   tone,
-  root,
-  skip,
-  ribbons,
-  relatives,
-  onRefresh,
+  flashId,
 }: {
-  title: string;
-  subtitle: string;
+  branch: FamilyBranch;
   tone: Tone;
-  root?: RelativeLike | undefined;
-  skip: RelativeLike[];
-  ribbons: { label: string; people: RelativeLike[] }[];
-  relatives: RelativeLike[];
-  onRefresh: () => void;
+  flashId?: string | null;
 }) {
-  if (!root) return null;
-  const find = byId(relatives);
-  const spouse = safeSpouse(root, find(root.spouseId));
-  const bannerCls =
-    tone === "maternal" ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground";
-  const frameCls =
-    tone === "maternal"
-      ? "border-accent/25 bg-accent/[0.05]"
-      : "border-primary/25 bg-primary/[0.04]";
-
+  const cfg = toneCfg[tone];
   return (
     <section
-      className={`flex w-full max-w-lg flex-col items-center gap-5 rounded-2xl border p-4 sm:p-5 ${frameCls}`}
+      dir="rtl"
+      className={`mx-1 rounded-2xl border bg-card/50 p-4 text-center sm:mx-2 sm:p-5 ${cfg.panel}`}
+      style={{ "--ftree-line": cfg.line } as CSSProperties}
     >
-      <div className={`flex flex-col items-center rounded-full px-6 py-2 text-center ${bannerCls}`}>
-        <b className="font-display text-lg leading-tight">{title}</b>
-        <span className="text-[0.65rem] opacity-80">{subtitle}</span>
+      <BranchHeader branch={branch} tone={tone} />
+      <div className="mt-6">
+        <ul className="ftree">
+          <li>
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
+              <SiblingChips label="إخوة جدو" people={branch.grandfatherSiblings} tone={tone} />
+              <div className="flex flex-col items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={`hidden h-8 w-px border-e-2 border-dashed lg:block ${cfg.dashed}`}
+                />
+                <CoupleRow
+                  couple={branch.grandparents}
+                  size="grandparent"
+                  tone={tone}
+                  flashId={flashId}
+                />
+              </div>
+              <SiblingChips label="إخوة تيتة" people={branch.grandmotherSiblings} tone={tone} />
+            </div>
+            {branch.children.length > 0 && (
+              <ChildrenBus>
+                {branch.children.map((child) => (
+                  <li key={child.couple.person.id} className="px-2 sm:px-3">
+                    <div className="inline-flex flex-col items-center gap-3">
+                      <CoupleRow
+                        couple={child.couple}
+                        size="parent"
+                        tone={tone}
+                        flashId={flashId}
+                        roleBadge={child.isTamimParent}
+                      />
+                      {child.children.length > 0 && (
+                        <ChildrenBus>
+                          {child.children.map((c) => (
+                            <li key={c.id}>
+                              <PersonCard person={c} size="cousin" tone={tone} />
+                            </li>
+                          ))}
+                        </ChildrenBus>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ChildrenBus>
+            )}
+          </li>
+        </ul>
       </div>
-      <CoupleNode
-        person={root}
-        spouse={spouse}
-        relatives={relatives}
-        onRefresh={onRefresh}
-        skipIds={new Set(skip.map((s) => s.id))}
-        ribbons={ribbons}
-        tone={tone}
-      />
     </section>
+  );
+}
+
+function BranchTabs({
+  branches,
+  active,
+  onSelect,
+}: {
+  branches: FamilyBranch[];
+  active: string;
+  onSelect: (side: "dad" | "mom") => void;
+}) {
+  return (
+    <div className="sticky top-16 z-30 mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-soft">
+      {branches.map((b) => {
+        const cfg = toneCfg[b.side];
+        const isActive = active === b.side;
+        return (
+          <button
+            type="button"
+            key={b.side}
+            onClick={() => onSelect(b.side)}
+            aria-pressed={isActive}
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center transition ${
+              isActive
+                ? `text-sm font-bold ${cfg.pill}`
+                : "text-xs font-semibold text-muted-foreground"
+            }`}
+          >
+            <span
+              className={`size-2.5 shrink-0 rounded-full ${isActive ? "bg-current opacity-80" : cfg.dot}`}
+            />
+            <span className="truncate">{b.title}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileBranchTree({
+  branch,
+  tone,
+  flashId,
+}: {
+  branch: FamilyBranch;
+  tone: Tone;
+  flashId?: string | null;
+}) {
+  const cfg = toneCfg[tone];
+  return (
+    <div dir="rtl" className="mftree" style={{ "--ftree-line": cfg.line } as CSSProperties}>
+      <ul className="mftree">
+        <li>
+          <div className="flex flex-col items-center gap-3">
+            <CoupleRow
+              couple={branch.grandparents}
+              size="grandparent"
+              tone={tone}
+              flashId={flashId}
+            />
+            <div className="flex w-full flex-wrap justify-center gap-x-7 gap-y-3">
+              <SiblingChips label="إخوة جدو" people={branch.grandfatherSiblings} tone={tone} />
+              <SiblingChips label="إخوة تيتة" people={branch.grandmotherSiblings} tone={tone} />
+            </div>
+          </div>
+          <ul className="mftree">
+            {branch.children.map((child) => (
+              <li key={child.couple.person.id}>
+                <CoupleRow
+                  couple={child.couple}
+                  size="parent"
+                  tone={tone}
+                  flashId={flashId}
+                  roleBadge={child.isTamimParent}
+                />
+                {child.children.length > 0 && (
+                  <ul className="mftree">
+                    {child.children.map((c) => (
+                      <li key={c.id}>
+                        <PersonCard person={c} size="cousin" tone={tone} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </li>
+      </ul>
+    </div>
   );
 }
 
 function FamilyTreePage() {
   const { child, relatives } = Route.useLoaderData();
   const router = useRouter();
+  const data = buildFamilyData(relatives);
+  const [activeSide, setActiveSide] = useState<"dad" | "mom">(data.branches[0]?.side ?? "dad");
+  const [flashId, setFlashId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const refresh = () => {
     router.invalidate();
   };
 
-  const zoomClass =
-    zoom < 0.85
-      ? "scale-[.8]"
-      : zoom < 0.95
-        ? "scale-90"
-        : zoom > 1.15
-          ? "scale-125"
-          : zoom > 1.05
-            ? "scale-110"
-            : "scale-100";
+  const activeBranch = data.branches.find((b) => b.side === activeSide) ?? data.branches[0];
 
-  const find = byId(relatives);
-  const parens = relatives.filter(
-    (p) => p.id === "momen" || p.id === "nagham" || p.group === "Parents",
-  );
-  const papi = find("momen") ?? parens.find((p) => p.group === "Parents");
-  const mami =
-    find("nagham") ?? (papi ? find(papi.spouseId) : undefined) ?? parens.find((p) => p !== papi);
-
-  const geddoAhmed = papi ? find(papi.parentId) : undefined;
-  const geddoIshaq = mami ? find(mami.parentId) : undefined;
-
-  const greats = relatives.filter((p) => p.group === "Great aunts & uncles");
-  const paternalRibbons = [
-    {
-      label: "أشقاء وأخوات الجد — عمات وأعمام بابا",
-      people: greats.filter((g) => /عم بابا|عمة بابا/.test(g.relationship)),
-    },
-    {
-      label: "أشقاء وأخوات الجدة — خالات وأخوال بابا",
-      people: greats.filter((g) => /خال بابا|خالة بابا/.test(g.relationship)),
-    },
-    {
-      label: "سائر أهل الجدة",
-      people: greats.filter((g) => !/بابا|ماما/.test(g.relationship)),
-    },
-  ];
-  const maternalRibbons = [
-    {
-      label: "أشقاء وأخوات الجد — عمام ماما",
-      people: greats.filter((g) => /عم ماما/.test(g.relationship)),
-    },
-    {
-      label: "أشقاء وأخوات الجدة — خالات ماما",
-      people: greats.filter((g) => /خال ماما|خالة ماما/.test(g.relationship)),
-    },
-  ];
+  function focusParent(person: FamilyPerson) {
+    const side = data.branches.find((b) =>
+      b.children.some((c) => c.couple.person.id === person.id || c.couple.spouse?.id === person.id),
+    )?.side;
+    if (side && window.innerWidth < 768) setActiveSide(side);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`ftree-${person.id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFlashId(person.id);
+      window.setTimeout(() => setFlashId(null), 1800);
+    });
+  }
 
   return (
-    <WorldShell>
-      <PageIntro
-        eyebrow="Where you come from"
-        title="Our family tree"
-        text="الشجرة كلها هنا: تبدأ من تميم في القلب، بعدين بابا وماما، وبعدين أسرتيهم الكبيرة — من الجدود وشقيقاتهم لكل العمام والخالات وأولادهم."
-      />
-      <div className="mx-5 flex flex-wrap items-center gap-2 sm:mx-8">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary ring-1 ring-primary/30">
-          فرع بابا
-        </span>
-        <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent ring-1 ring-accent/50">
-          فرع ماما
-        </span>
-        <span className="text-xs text-muted-foreground">
-          اضغط على أي شخص تشوف صورته وتعدّل بياناته
-        </span>
-      </div>
-      <div className="mx-5 mt-4 overflow-auto rounded-lg border border-border bg-tree-paper shadow-soft touch-pan-x touch-pan-y sm:mx-8">
-        <div className="sticky right-3 top-3 z-30 ml-auto flex w-fit gap-1 p-3">
-          <Button
-            size="icon"
-            variant="secondary"
-            onClick={() => setZoom(Math.max(0.8, zoom - 0.1))}
-            aria-label="Zoom out"
-          >
-            <Minus />
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            onClick={() => setZoom(Math.min(1.25, zoom + 0.1))}
-            aria-label="Zoom in"
-          >
-            <Plus />
-          </Button>
-        </div>
-        <div
-          className={`mx-auto flex min-h-[38rem] min-w-[24rem] origin-top flex-col items-center px-4 py-8 transition-transform ${zoomClass}`}
-        >
-          {!papi || !mami ? (
-            <div className="flex flex-wrap justify-center gap-4 py-10">
-              {relatives.map((p) => (
-                <PersonCard key={p.id} person={p} relatives={relatives} onRefresh={refresh} />
-              ))}
-            </div>
-          ) : (
-            <>
-              <TamimHeart name={child.name} />
-              <div className="h-8 w-px bg-primary/35" />
-              <CoupleNode
-                person={papi}
-                spouse={safeSpouse(papi, find(papi.spouseId))}
-                relatives={relatives}
-                onRefresh={refresh}
-                skipIds={new Set()}
-                ribbons={[]}
-              />
-              <div className="mt-8 h-7 w-px bg-primary/35" />
-              <div className="flex w-80 max-w-full justify-between">
-                <div className="h-10 w-px bg-primary/35" />
-                <div className="h-10 w-px bg-primary/35" />
-              </div>
-              <div className="mt-0 flex flex-wrap items-start justify-center gap-8 pt-4 sm:gap-12">
-                <FamilySide
-                  title="عيلت بابا مؤمن"
-                  subtitle="فرع الجد أحمد والجدة ناديه"
-                  tone="paternal"
-                  root={geddoAhmed}
-                  skip={papi ? [papi] : []}
-                  ribbons={paternalRibbons}
-                  relatives={relatives}
-                  onRefresh={refresh}
-                />
-                <FamilySide
-                  title="عيلت ماما نغم"
-                  subtitle="فرع الجد اسحاق والجدة ماجده"
-                  tone="maternal"
-                  root={geddoIshaq}
-                  skip={mami ? [mami] : []}
-                  ribbons={maternalRibbons}
-                  relatives={relatives}
-                  onRefresh={refresh}
-                />
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="mx-5 mt-4 flex items-center justify-between gap-3 sm:mx-8">
-        <p className="text-xs text-muted-foreground">
-          صور أي حد بتتغير من صفحة <b>Relatives</b> — افتح البطاقة واقدر ترفع صورة أو تفتح الكاميرا.
-        </p>
-        <RelativeFormDialog
-          mode="create"
-          relatives={relatives}
-          onDone={refresh}
-          trigger={<Button size="sm">Add person</Button>}
+    <TreeContext.Provider value={{ relatives, onDone: refresh }}>
+      <WorldShell>
+        <PageIntro
+          eyebrow="Where you come from"
+          title="Our family tree"
+          text="الشجرة كلها هنا: تميم في القلب، بابا وماما، وأسرتيهم الكبيرة — من الجدود وشقيقاتهم لكل العمام والخالات وأولادهم. اضغط أي شخص تشوف صورته وتعدّل بياناته."
         />
-      </div>
-    </WorldShell>
+        <div
+          dir="rtl"
+          className="mx-5 mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 px-1 text-xs text-muted-foreground sm:mx-8"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-primary" aria-hidden="true" />
+            فرع بابا
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-accent" aria-hidden="true" />
+            فرع ماما
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm leading-none text-primary">♥</span>
+            زواج
+          </span>
+        </div>
+
+        {data.branches.length === 0 ? (
+          <div className="mx-5 mt-8 rounded-2xl border border-border bg-card p-10 text-center sm:mx-8">
+            <span className="text-4xl">♡</span>
+            <h2 className="mt-3 font-display text-2xl">الشجرة لسه بتتزرع</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              ضيف الأشخاص الأول بأزرار Add person أو من صفحة Relatives.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile: one branch at a time */}
+            <div className="md:hidden" dir="rtl">
+              <div className="px-5 sm:px-8">
+                <div className="rounded-2xl border border-border bg-tree-paper pb-4 pt-6 shadow-soft">
+                  <div className="flex flex-col items-center">
+                    <TamimHero
+                      name={data.rootName}
+                      subtitle={data.rootSubtitle}
+                      image={child.hero_image}
+                    />
+                    <div className="mt-2 h-8 w-0.5 rounded-full bg-primary/40" />
+                    {data.parents && (
+                      <CoupleRow
+                        couple={data.parents}
+                        size="parent"
+                        tone="dad"
+                        hero
+                        onPersonFocus={focusParent}
+                      />
+                    )}
+                  </div>
+                  <div className="px-4">
+                    <BranchTabs
+                      branches={data.branches}
+                      active={activeSide}
+                      onSelect={setActiveSide}
+                    />
+                  </div>
+                  {activeBranch && (
+                    <div className="mt-6 px-4">
+                      <MobileBranchTree
+                        branch={activeBranch}
+                        tone={activeBranch.side}
+                        flashId={flashId}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop: both branches side by side */}
+            <div className="hidden md:block">
+              <div className="mx-5 mt-6 overflow-auto rounded-2xl border border-border bg-tree-paper shadow-soft sm:mx-8">
+                <div className="sticky top-0 z-30 flex justify-end gap-1 p-3 pr-6">
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={() => setZoom(Math.max(0.85, zoom - 0.1))}
+                    aria-label="Zoom out"
+                  >
+                    <Minus />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={() => setZoom(Math.min(1.25, zoom + 0.1))}
+                    aria-label="Zoom in"
+                  >
+                    <Plus />
+                  </Button>
+                </div>
+                <div dir="rtl" className="ftree-fade flex justify-center px-4 py-10">
+                  <div
+                    className="flex w-full max-w-[70rem] flex-col items-center"
+                    style={
+                      {
+                        transform: `scale(${zoom})`,
+                        transformOrigin: "top center",
+                        ["--ftree-line" as string]:
+                          "color-mix(in srgb, var(--color-primary) 40%, transparent)",
+                      } as CSSProperties
+                    }
+                  >
+                    <ul className="w-full ftree">
+                      <li>
+                        <div className="inline-flex flex-col items-center">
+                          <TamimHero
+                            name={data.rootName}
+                            subtitle={data.rootSubtitle}
+                            image={child.hero_image}
+                          />
+                        </div>
+                        <ul className="ftree">
+                          <li className="px-0">
+                            {data.parents ? (
+                              <CoupleRow
+                                couple={data.parents}
+                                size="parent"
+                                tone="dad"
+                                hero
+                                onPersonFocus={focusParent}
+                              />
+                            ) : (
+                              <span className="inline-flex flex-col items-center gap-2">
+                                <span className="rounded-2xl border border-border bg-card px-5 py-3 text-sm text-muted-foreground">
+                                  عيلة محبوبة
+                                </span>
+                              </span>
+                            )}
+                            <ul className="ftree ftree-row">
+                              {data.branches.map((b) => (
+                                <li key={b.side}>
+                                  <BranchPanel branch={b} tone={b.side} flashId={flashId} />
+                                </li>
+                              ))}
+                            </ul>
+                          </li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="mx-5 mt-4 flex items-center justify-between gap-3 sm:mx-8">
+          <p className="text-xs text-muted-foreground">
+            صور أي حد بتتغير من صفحة <b>Relatives</b> — افتح البطاقة واقدر ترفع صورة أو تفتح
+            الكاميرا.
+          </p>
+          <RelativeFormDialog
+            mode="create"
+            relatives={relatives}
+            onDone={refresh}
+            trigger={<Button size="sm">Add person</Button>}
+          />
+        </div>
+      </WorldShell>
+    </TreeContext.Provider>
   );
 }
