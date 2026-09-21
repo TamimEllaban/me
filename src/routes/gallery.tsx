@@ -37,13 +37,15 @@ function ItemCard({ item }: { item: GalleryItem }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button className="group relative block w-full break-inside-avoid overflow-hidden rounded-lg bg-card shadow-soft transition active:scale-[0.98]">
-          <img
-            src={item.thumb}
-            alt={cleanName(item.sourceName)}
-            loading="lazy"
-            className="w-full object-cover transition group-hover:scale-[1.03]"
-          />
+        <button className="group relative block w-full overflow-hidden rounded-lg bg-card shadow-soft transition active:scale-[0.98]">
+          <div className="aspect-[4/5] w-full">
+            <img
+              src={item.thumb}
+              alt={cleanName(item.sourceName)}
+              loading="lazy"
+              className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+            />
+          </div>
           {item.kind === "video" && (
             <span className="absolute inset-0 flex items-center justify-center">
               <span className="flex size-12 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition group-hover:bg-primary">
@@ -53,15 +55,22 @@ function ItemCard({ item }: { item: GalleryItem }) {
           )}
         </button>
       </DialogTrigger>
-      <DialogContent className="max-h-[88svh] overflow-y-auto p-0 sm:max-w-2xl">
+      <DialogContent className="max-h-[88svh] overflow-y-auto gap-3 p-0 sm:max-w-2xl sm:p-0">
         {item.kind === "video" ? (
-          <video src={item.url} controls autoPlay loop playsInline className="w-full" />
+          <video
+            src={item.url}
+            controls
+            autoPlay
+            loop
+            playsInline
+            className="max-h-[70svh] w-full bg-black"
+          />
         ) : (
-          <img src={item.url} alt="" className="w-full" />
+          <img src={item.url} alt="" className="max-h-[70svh] w-full object-contain bg-black" />
         )}
-        <div className="p-5">
+        <div className="px-5 pb-5">
           <DialogTitle className="font-display text-xl">{cleanName(item.sourceName)}</DialogTitle>
-          <DialogDescription className="mt-2 flex items-center gap-2 text-sm">
+          <DialogDescription className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
             {item.category}
             {item.date && <span>· {item.date}</span>}
           </DialogDescription>
@@ -98,7 +107,7 @@ function GalleryPage() {
         {shown.map((category) => (
           <section key={category.name} className="mb-12">
             <h2 className="mb-4 font-display text-2xl">{category.name}</h2>
-            <div className="columns-2 gap-3 sm:columns-3 md:columns-4 [column-fill:balance]">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {category.items.map((item) => (
                 <ItemCard key={item.id} item={item} />
               ))}

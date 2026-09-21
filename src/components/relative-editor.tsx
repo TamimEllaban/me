@@ -162,7 +162,7 @@ export function RelativeFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto max-w-md">
+      <DialogContent className="max-h-[92svh] w-[calc(100%-2rem)] overflow-y-auto max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
             {editing
@@ -178,50 +178,59 @@ export function RelativeFormDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Label>
-            Name
+          <div className="space-y-1.5">
+            <Label className="block" htmlFor="rel-name">
+              Name
+            </Label>
             <Input
+              id="rel-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 h-11"
+              className="h-11"
               placeholder="الاسم"
             />
-          </Label>
-          <div className="grid grid-cols-2 gap-3">
-            <Label>
-              Relationship
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-relationship">
+                Relationship
+              </Label>
               <Input
+                id="rel-relationship"
                 value={relationship}
                 onChange={(e) => setRelationship(e.target.value)}
-                className="mt-1 h-11"
+                className="h-11"
                 placeholder="بابا / ماما / خالة..."
               />
-            </Label>
-            <Label>
-              Family group
+            </div>
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-group">
+                Family group
+              </Label>
               <Input
+                id="rel-group"
                 list="relative-groups"
                 value={group}
                 onChange={(e) => setGroup(e.target.value)}
-                className="mt-1 h-11"
+                className="h-11"
               />
               <datalist id="relative-groups">
                 {GROUP_SUGGESTIONS.map((g) => (
                   <option key={g} value={g} />
                 ))}
               </datalist>
-            </Label>
+            </div>
           </div>
-          <div>
-            <Label>Photo</Label>
+          <div className="space-y-1.5">
+            <Label className="block">Photo</Label>
             {image && (
               <img
                 src={image}
                 alt=""
-                className="mt-1 max-h-44 w-full rounded-md bg-background object-contain"
+                className="max-h-48 w-full rounded-lg border border-border bg-background object-contain"
               />
             )}
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <input
                 ref={fileRef}
                 type="file"
@@ -247,7 +256,6 @@ export function RelativeFormDialog({
               />
               <Button
                 type="button"
-                size="sm"
                 variant="secondary"
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
@@ -256,7 +264,6 @@ export function RelativeFormDialog({
               </Button>
               <Button
                 type="button"
-                size="sm"
                 variant="secondary"
                 disabled={uploading}
                 onClick={() => camRef.current?.click()}
@@ -264,42 +271,48 @@ export function RelativeFormDialog({
                 <Camera className="size-4" /> الكاميرا
               </Button>
             </div>
-            {uploadMsg && <p className="mt-1 text-xs text-muted-foreground">{uploadMsg}</p>}
-            <Label className="mt-2">
-              أو رابط صورة مباشر
-              <Input
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                className="mt-1 h-11"
-                placeholder="https://res.cloudinary.com/..."
-              />
-            </Label>
-          </div>
-          <Label>
-            One nice thing <span className="font-normal text-muted-foreground">(fact)</span>
             <Input
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+              className="h-11"
+              placeholder="أو االصق رابط صورة مباشر هنا"
+            />
+            {uploadMsg && <p className="text-xs text-muted-foreground">{uploadMsg}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="block" htmlFor="rel-fact">
+              One nice thing <span className="font-normal text-muted-foreground">(fact)</span>
+            </Label>
+            <Input
+              id="rel-fact"
               value={fact}
               onChange={(e) => setFact(e.target.value)}
-              className="mt-1 h-11"
+              className="h-11"
               placeholder="حاجة حلوة عنه/عنها"
             />
-          </Label>
-          <Label>
-            About them
+          </div>
+          <div className="space-y-1.5">
+            <Label className="block" htmlFor="rel-bio">
+              About them
+            </Label>
             <Textarea
+              id="rel-bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={3}
-              className="mt-1 resize-none"
+              className="resize-none"
               placeholder="كلمتين عنهم"
             />
-          </Label>
-          <Label>
-            فرع من (branch under)
+          </div>
+          <div className="space-y-1.5">
+            <Label className="block" htmlFor="rel-parent">
+              فرع من (branch under)
+            </Label>
             <select
+              id="rel-parent"
               value={parentId}
               onChange={(e) => setParentId(e.target.value)}
-              className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">— من غير فرع (at the top) —</option>
               {relatives
@@ -310,14 +323,14 @@ export function RelativeFormDialog({
                   </option>
                 ))}
             </select>
-          </Label>
+          </div>
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
         </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => setOpen(false)}>
+        <DialogFooter className="gap-2">
+          <Button variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={submit} disabled={busy}>
+          <Button onClick={submit} disabled={busy} className="w-full sm:w-auto">
             {busy
               ? "Saving…"
               : editing
