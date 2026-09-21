@@ -124,7 +124,7 @@ function RelativesPage() {
                     alt=""
                     width={1200}
                     height={912}
-                    className="aspect-[4/3] w-full rounded-lg object-cover"
+                    className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
                   />
                   <DialogTitle className="font-display text-3xl">{person.name}</DialogTitle>
                   <p className="text-sm font-semibold text-primary">{person.relationship}</p>

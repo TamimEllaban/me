@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { Camera, Upload } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { addRelativeEntry, deleteRelativeEntry, updateRelativeEntry } from "@/lib/gate.functions";
+import {
+  addRelativeEntry,
+  deleteRelativeEntry,
+  updateRelativeEntry,
+  uploadFamilyPhoto,
+} from "@/lib/gate.functions";
 
 export type RelativeLike = {
   id: string;
@@ -73,6 +79,36 @@ export function RelativeFormDialog({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotoFile(file: File) {
+    if (!file) return;
+    setUploading(true);
+    setUploadMsg(null);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      const res = await uploadFamilyPhoto({
+        data: { source: dataUrl, name: file.name || "relative-photo" },
+      });
+      if (res?.url) {
+        setImage(res.url);
+        setUploadMsg("تم رفع الصورة ✓");
+      } else {
+        setUploadMsg("حصلت مشكلة في الرفع — جرب تاني.");
+      }
+    } catch {
+      setUploadMsg("حصلت مشكلة في قراءة الصورة.");
+    }
+    setUploading(false);
+  }
 
   async function submit() {
     if (!name.trim()) {
@@ -176,16 +212,69 @@ export function RelativeFormDialog({
               </datalist>
             </Label>
           </div>
-          <Label>
-            Photo URL{" "}
-            <span className="font-normal text-muted-foreground">(اختياري — أضفها بعدين)</span>
-            <Input
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              className="mt-1 h-11"
-              placeholder="https://res.cloudinary.com/..."
-            />
-          </Label>
+          <div>
+            <Label>Photo</Label>
+            {image && (
+              <img
+                src={image}
+                alt=""
+                className="mt-1 max-h-44 w-full rounded-md bg-background object-contain"
+              />
+            )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePhotoFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <input
+                ref={camRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePhotoFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+              >
+                <Upload className="size-4" /> {uploading ? "جاري الرفع…" : "رفع صورة"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={uploading}
+                onClick={() => camRef.current?.click()}
+              >
+                <Camera className="size-4" /> الكاميرا
+              </Button>
+            </div>
+            {uploadMsg && <p className="mt-1 text-xs text-muted-foreground">{uploadMsg}</p>}
+            <Label className="mt-2">
+              أو رابط صورة مباشر
+              <Input
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                className="mt-1 h-11"
+                placeholder="https://res.cloudinary.com/..."
+              />
+            </Label>
+          </div>
           <Label>
             One nice thing <span className="font-normal text-muted-foreground">(fact)</span>
             <Input

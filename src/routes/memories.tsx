@@ -85,7 +85,7 @@ function MemoriesPage() {
                 alt=""
                 width={1200}
                 height={912}
-                className="aspect-[4/3] w-full object-cover"
+                className="max-h-[60vh] w-full bg-background object-contain"
               />
               <div className="p-6">
                 <p className="text-xs font-semibold text-primary">{memory.date}</p>
