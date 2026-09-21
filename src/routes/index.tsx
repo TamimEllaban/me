@@ -47,7 +47,7 @@ function AgeCounter({ birthdate }: { birthdate: string }) {
     months += 12;
   }
   return (
-    <div className="grid grid-cols-3 divide-x divide-border rounded-lg bg-background/92 py-4 shadow-keepsake backdrop-blur">
+    <div className="grid grid-cols-3 divide-x divide-border rounded-lg bg-background/92 py-4 text-foreground shadow-keepsake backdrop-blur">
       <div className="px-2 text-center">
         <b className="block font-display text-2xl">{years}</b>
         <span className="text-[0.68rem] text-muted-foreground">years</span>
