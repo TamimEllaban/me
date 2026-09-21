@@ -7,6 +7,8 @@ import { redirect } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   addLetter as dbAddLetter,
+  addRelative as dbAddRelative,
+  deleteRelative as dbDeleteRelative,
   updateChild as dbUpdateChild,
   updateMemory,
   updateMemoryImage,
@@ -73,7 +75,7 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
   const memories = await getMemories();
   return {
     child: await getChild(),
-    memories: memories.slice(0, 2),
+    memories: memories.slice(-2),
     profileId: session.data.profileId ?? "family",
   };
 });
@@ -225,12 +227,64 @@ export const updateRelativeEntry = createServerFn({ method: "POST" })
       patch,
     }: {
       id: string;
-      patch: { name?: string; relationship?: string; group?: string; fact?: string; bio?: string };
+      patch: {
+        name?: string;
+        relationship?: string;
+        group?: string;
+        image?: string;
+        fact?: string;
+        bio?: string;
+        parentId?: string | null;
+        spouseId?: string | null;
+      };
     }) => ({ id, patch }),
   )
   .handler(async ({ data }) => {
     await requireUnlocked();
     return { ok: await updateRelative(data.id, data.patch) };
+  });
+
+export const addRelativeEntry = createServerFn({ method: "POST" })
+  .inputValidator(
+    ({
+      name,
+      relationship,
+      group,
+      image,
+      fact,
+      bio,
+      parentId,
+      spouseId,
+    }: {
+      name: string;
+      relationship?: string;
+      group?: string;
+      image?: string;
+      fact?: string;
+      bio?: string;
+      parentId?: string | null;
+      spouseId?: string | null;
+    }) => ({
+      name,
+      relationship: relationship ?? "",
+      group: group ?? "Family",
+      image: image ?? "",
+      fact: fact ?? "",
+      bio: bio ?? "",
+      parentId: parentId ?? null,
+      spouseId: spouseId ?? null,
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireUnlocked();
+    return await dbAddRelative(data);
+  });
+
+export const deleteRelativeEntry = createServerFn({ method: "POST" })
+  .inputValidator(({ id }: { id: string }) => ({ id }))
+  .handler(async ({ data }) => {
+    await requireUnlocked();
+    return await dbDeleteRelative(data.id);
   });
 
 export const addLetterEntry = createServerFn({ method: "POST" })

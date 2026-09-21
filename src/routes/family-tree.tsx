@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Minus, Plus } from "lucide-react";
+import { useRouter } from "@tanstack/react-router";
+import { GitBranch, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import {
+  RelativeFormDialog,
+  RemoveRelativeButton,
+  type RelativeLike,
+} from "@/components/relative-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,10 +32,15 @@ export const Route = createFileRoute("/family-tree")({
   }),
   component: FamilyTreePage,
 });
-function Person({
+
+function PersonCard({
   person,
+  relatives,
+  onRefresh,
 }: {
-  person: ReturnType<typeof Route.useLoaderData>["relatives"][number];
+  person: RelativeLike;
+  relatives: RelativeLike[];
+  onRefresh: () => void;
 }) {
   return (
     <Dialog>
@@ -43,8 +54,8 @@ function Person({
             loading="lazy"
             className="size-14 rounded-full object-cover"
           />
-          <b className="mt-2 font-display">{person.name}</b>
-          <span className="text-[0.68rem] text-primary">{person.relationship}</span>
+          <b className="mt-2 text-center font-display">{person.name}</b>
+          <span className="text-center text-[0.68rem] text-primary">{person.relationship}</span>
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">
@@ -58,16 +69,124 @@ function Person({
         <DialogTitle className="font-display text-3xl">{person.name}</DialogTitle>
         <p className="text-sm font-semibold text-primary">{person.relationship}</p>
         <DialogDescription className="leading-6">{person.bio}</DialogDescription>
+        <div className="flex flex-wrap gap-2">
+          <RelativeFormDialog
+            mode="child"
+            parent={person}
+            relatives={relatives}
+            onDone={onRefresh}
+            trigger={
+              <Button size="sm">
+                <GitBranch className="size-4" /> Add branch
+              </Button>
+            }
+          />
+          <RelativeFormDialog
+            mode="edit"
+            person={person}
+            relatives={relatives}
+            onDone={onRefresh}
+            trigger={
+              <Button size="sm" variant="secondary">
+                <Pencil className="size-4" /> Edit
+              </Button>
+            }
+          />
+          <RemoveRelativeButton
+            person={person}
+            onDone={onRefresh}
+            trigger={
+              <Button size="sm" variant="secondary" className="text-destructive">
+                <Trash2 className="size-4" /> Remove
+              </Button>
+            }
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
+
+function TamimHeart({ name }: { name: string }) {
+  return (
+    <div className="relative z-10 rounded-lg border-2 border-primary bg-secondary p-4 text-center shadow-keepsake">
+      <span className="text-2xl">♡</span>
+      <b className="mt-1 block font-display text-lg">{name}</b>
+      <span className="text-xs text-primary">The heart of our tree</span>
+    </div>
+  );
+}
+
+function Node({
+  person,
+  relatives,
+  onRefresh,
+  childName,
+  rendered,
+}: {
+  person: RelativeLike;
+  relatives: RelativeLike[];
+  onRefresh: () => void;
+  childName: string;
+  rendered: Set<string>;
+}) {
+  rendered.add(person.id);
+  const spouse = person.spouseId
+    ? relatives.find((r) => r.id === person.spouseId && r.id !== person.id)
+    : undefined;
+  if (spouse) rendered.add(spouse.id);
+  const children = relatives.filter(
+    (r) => r.parentId === person.id && r.id !== person.id && !rendered.has(r.id),
+  );
+  return (
+    <div className="flex flex-col items-center">
+      <div className="flex items-start gap-4">
+        <PersonCard person={person} relatives={relatives} onRefresh={onRefresh} />
+        {spouse && <PersonCard person={spouse} relatives={relatives} onRefresh={onRefresh} />}
+      </div>
+      {children.length > 0 && (
+        <>
+          <div className="h-8 w-px bg-primary/35" />
+          <div className="flex flex-wrap items-start justify-center gap-5">
+            {children.map((c) => (
+              <Node
+                key={c.id}
+                person={c}
+                relatives={relatives}
+                onRefresh={onRefresh}
+                childName={childName}
+                rendered={rendered}
+              />
+            ))}
+          </div>
+        </>
+      )}
+      {person.id === "momen" && children.length === 0 && (
+        <>
+          <div className="h-8 w-px bg-primary/35" />
+          <TamimHeart name={childName} />
+        </>
+      )}
+    </div>
+  );
+}
+
 function FamilyTreePage() {
-  const { relatives } = Route.useLoaderData();
+  const { child, relatives } = Route.useLoaderData();
+  const router = useRouter();
   const [zoom, setZoom] = useState(1);
-  const grandparents = relatives.filter((p) => p.group === "Grandparents");
-  const parents = relatives.filter((p) => p.group === "Parents");
-  const uncle = relatives.find((p) => p.group === "Aunts & Uncles");
+  const refresh = () => {
+    router.invalidate();
+  };
+
+  const treeable = relatives.filter((p) => p.group !== "Great aunts & uncles");
+  const spouseIds = new Set(treeable.flatMap((r) => (r.spouseId ? [r.spouseId] : [])));
+  const rootBranches: RelativeLike[] = [];
+  for (const root of treeable.filter((p) => !p.parentId && !spouseIds.has(p.id))) {
+    if (root.spouseId && rootBranches.some((r) => r.id === root.spouseId)) continue;
+    rootBranches.push(root);
+  }
+  const rendered = new Set<string>();
   const zoomClass =
     zoom < 0.85
       ? "scale-[.8]"
@@ -78,12 +197,13 @@ function FamilyTreePage() {
           : zoom > 1.05
             ? "scale-110"
             : "scale-100";
+
   return (
     <WorldShell>
       <PageIntro
         eyebrow="Where you come from"
         title="Our family tree"
-        text="Tap a person to meet them. Pinch or use the controls to explore every branch."
+        text="The tree grows from the grandparents. Tap anyone to edit them or add a branch under them."
       />
       <div className="mx-5 overflow-auto rounded-lg border border-border bg-tree-paper shadow-soft touch-pan-x touch-pan-y sm:mx-8">
         <div className="sticky right-3 top-3 z-30 ml-auto flex w-fit gap-1 p-3">
@@ -107,25 +227,34 @@ function FamilyTreePage() {
         <div
           className={`mx-auto flex min-h-[38rem] min-w-[23rem] origin-top flex-col items-center px-4 pb-12 transition-transform ${zoomClass}`}
         >
-          <div className="grid grid-cols-2 gap-5 border-b border-primary/35 pb-8">
-            {grandparents.slice(0, 4).map((p) => (
-              <Person key={p.id} person={p} />
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {rootBranches.map((root) => (
+              <div
+                key={root.id}
+                className="flex justify-center border-b border-primary/35 pb-4 sm:border-b-0 sm:pb-0"
+              >
+                <Node
+                  person={root}
+                  relatives={treeable}
+                  onRefresh={refresh}
+                  childName={child.name}
+                  rendered={rendered}
+                />
+              </div>
             ))}
-          </div>
-          <div className="h-8 w-px bg-primary/35" />
-          <div className="flex gap-5 border-b border-primary/35 pb-8">
-            {parents.map((p) => (
-              <Person key={p.id} person={p} />
-            ))}
-            {uncle && <Person person={uncle} />}
-          </div>
-          <div className="h-8 w-px bg-primary/35" />
-          <div className="rounded-lg border-2 border-primary bg-secondary p-4 text-center shadow-keepsake">
-            <span className="text-2xl">♡</span>
-            <b className="mt-1 block font-display text-lg">Tamim</b>
-            <span className="text-xs text-primary">The heart of our tree</span>
           </div>
         </div>
+      </div>
+      <div className="mx-5 mt-4 flex items-center justify-between gap-3 sm:mx-8">
+        <p className="text-xs text-muted-foreground">
+          صور كل واحد موجودة في صفحة <b>Relatives</b> — ضيفها من هناك بعدين.
+        </p>
+        <RelativeFormDialog
+          mode="create"
+          relatives={relatives}
+          onDone={refresh}
+          trigger={<Button size="sm">Add person</Button>}
+        />
       </div>
     </WorldShell>
   );

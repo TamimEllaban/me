@@ -1,6 +1,7 @@
 // Creates the family-site schema on Neon (Postgres) and seeds it with the
-// placeholder content, using Cloudinary URLs for images.
+// family content, using Cloudinary URLs for images.
 // Run: node --env-file=.env scripts/seed.mjs
+import { readFileSync } from "node:fs";
 import { neon } from "@neondatabase/serverless";
 
 const url = process.env.DATABASE_URL;
@@ -12,11 +13,23 @@ if (!url) {
 const sql = neon(url);
 
 const CLOUD = "https://res.cloudinary.com/djseokhow/image/upload";
-const heroImage = `${CLOUD}/tamims-world/hero-child.jpg`;
-const imgBirth = `${CLOUD}/tamims-world/memory-birth.jpg`;
-const imgSmile = `${CLOUD}/tamims-world/memory-smile.jpg`;
-const imgSteps = `${CLOUD}/tamims-world/memory-steps.jpg`;
-const imgBirthday = `${CLOUD}/tamims-world/memory-birthday.jpg`;
+
+function mediaUrl(catalogName) {
+  const catalog = JSON.parse(
+    readFileSync(new URL("../src/lib/media-catalog.json", import.meta.url), "utf8"),
+  );
+  const found = catalog.items.find((item) => item.sourceName === catalogName);
+  if (!found) throw new Error(`Media not found in catalog: ${catalogName}`);
+  return found.url.replace(/\/v\d+\//, "/");
+}
+
+const imgHero = mediaUrl("تميم مع ماما وبابا.jpg");
+const imgBirth = mediaUrl("The day of birth 1.jpg");
+const imgSeboua = mediaUrl("السبوع بتاع تميم.jpg");
+const imgGrowing = mediaUrl("تميم وهو صغير (4).jpg");
+const imgSea = mediaUrl("تميم فى البحر وهو صغير (1).jpg");
+const imgKaftan = mediaUrl("تميم لابس قفطان.jpg");
+const imgZoo = mediaUrl("تميم فى جنينه الحيوانات  (1).jpeg");
 
 await sql`
   CREATE TABLE IF NOT EXISTS child (
@@ -50,9 +63,15 @@ await sql`
     image TEXT NOT NULL,
     fact TEXT NOT NULL DEFAULT '',
     bio TEXT NOT NULL DEFAULT '',
+    parent_id TEXT REFERENCES relatives(id) ON DELETE SET NULL,
+    spouse_id TEXT REFERENCES relatives(id) ON DELETE SET NULL,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
+
+// Upgrade schema on databases created before the tree columns existed.
+await sql`ALTER TABLE relatives ADD COLUMN IF NOT EXISTS parent_id TEXT REFERENCES relatives(id) ON DELETE SET NULL`;
+await sql`ALTER TABLE relatives ADD COLUMN IF NOT EXISTS spouse_id TEXT REFERENCES relatives(id) ON DELETE SET NULL`;
 
 await sql`
   CREATE TABLE IF NOT EXISTS letters (
@@ -72,59 +91,85 @@ await sql`
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
 
-// Upsert the placeholder content.
+// Upsert the child content.
 await sql`
   INSERT INTO child (id, name, birthdate, welcome, hero_image)
-  VALUES (1, 'Tamim', '2024-03-18',
+  VALUES (1, 'Tamim', '2024-01-23',
     'A little corner of the world where we keep the moments that make our hearts feel full.',
-    ${heroImage})
+    ${imgHero})
   ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name, birthdate = EXCLUDED.birthdate,
     welcome = EXCLUDED.welcome, hero_image = EXCLUDED.hero_image`;
 
+// Drop the old placeholder memories; the seeded rows below are the real ones.
+await sql`DELETE FROM memories`;
+await sql`DELETE FROM relatives`;
+await sql`DELETE FROM letters`;
+await sql`DELETE FROM profiles`;
+
 const memories = [
   [
-    1,
-    "birth",
+    "arrived",
     "The day you arrived",
-    "March 18, 2024",
+    "January 23, 2024",
     "Milestones",
     imgBirth,
+    1,
     "The whole room grew quiet, and then there you were.",
     "We counted every tiny finger and toe. You opened your eyes, held one of our fingers, and made the world feel completely new.",
   ],
   [
-    2,
-    "smile",
-    "Your first big smile",
-    "May 27, 2024",
-    "Everyday moments",
-    imgSmile,
-    "A sleepy morning suddenly became unforgettable.",
-    "Sunlight came through the nursery window and you gave us the widest, happiest smile. We laughed, then you laughed too.",
-  ],
-  [
-    3,
-    "steps",
-    "Three brave little steps",
-    "February 2, 2025",
-    "Milestones",
-    imgSteps,
-    "You let go, wobbled, and walked right into our arms.",
-    "Nobody breathed for those few seconds. You looked so proud when you reached us, and immediately turned around to try again.",
-  ],
-  [
-    4,
-    "birthday",
-    "One whole year of you",
-    "March 18, 2025",
+    "seboua",
+    "Your sebou'a celebration",
+    "February 8, 2024",
     "Celebrations",
-    imgBirthday,
-    "One candle, many happy tears, and cake everywhere.",
-    "The people who love you filled the room. You were far more interested in the cake than the candle—and we wouldn't have it any other way.",
+    imgSeboua,
+    2,
+    "The whole family came to celebrate you.",
+    "السبوع بتاعك: كل الناس فرحانة بيك، والكل شاف إنيّك وأنت شكلك أجمل واحد. صحيح السبوع هو أول احتفال كبير بيك.",
+  ],
+  [
+    "growing",
+    "Our little one, already growing",
+    "March 17, 2024",
+    "Everyday moments",
+    imgGrowing,
+    3,
+    "Two months old and already stealing every heart.",
+    "كل يوم بيكبر والضحكة بتكبر معاه. أول ما ابتدينا نعرف طبعك الحلو وابتسامتك اللي بتزيح تعب اليوم.",
+  ],
+  [
+    "first-sea",
+    "First taste of the sea",
+    "June 16, 2024",
+    "Adventures",
+    imgSea,
+    4,
+    "The ocean met you, and you loved it.",
+    "أول جولة بحر لتميم: الرمل والموج والضحك. فضلت تشوف المياه من بعيد الأول، وبعدين ما خلعتش من الحضن. أجمل يوم.",
+  ],
+  [
+    "kaftan",
+    "Qaftan day — moon-light handsome",
+    "February 21, 2025",
+    "Celebrations",
+    imgKaftan,
+    5,
+    "لبست القفطان وصرت أحلى عريس صغير.",
+    "في المناسبة دي لبست القفطان البيج الجميل، وكل حد سأل 'مين التلميذ ده؟'. عيونك كانت بتضحك من الفرحة.",
+  ],
+  [
+    "zoo",
+    "Our day at the zoo",
+    "January 21, 2026",
+    "Adventures",
+    imgZoo,
+    6,
+    "The animals, the walking, and your endless questions.",
+    "جولة جنينة الحيوانات: قربت من كل حيوان بحذر، وسألت عن كل صوت. قولناها إحنا كبار بس إنت كنت أجرأ البشر في اليوم ده.",
   ],
 ];
-for (const [order, id, title, date, category, image, excerpt, story] of memories) {
+for (const [id, title, date, category, image, order, excerpt, story] of memories) {
   await sql`
     INSERT INTO memories (id, title, date, category, image, excerpt, story, sort_order)
     VALUES (${id}, ${title}, ${date}, ${category}, ${image}, ${excerpt}, ${story}, ${order})
@@ -134,11 +179,14 @@ for (const [order, id, title, date, category, image, excerpt, story] of memories
       sort_order = EXCLUDED.sort_order`;
 }
 
-// Replace placeholder rows for the family tables so no stale content lingers.
-await sql`DELETE FROM relatives`;
-await sql`DELETE FROM letters`;
-await sql`DELETE FROM profiles`;
+const imgPlaceholders = {
+  birth: `${CLOUD}/tamims-world/memory-birth.jpg`,
+  smile: `${CLOUD}/tamims-world/memory-smile.jpg`,
+  steps: `${CLOUD}/tamims-world/memory-steps.jpg`,
+  birthday: `${CLOUD}/tamims-world/memory-birthday.jpg`,
+};
 
+// [order, id, name, relationship, group, image, fact, bio, parent, spouse]
 const relatives = [
   // ---- Parents ----
   [
@@ -147,9 +195,11 @@ const relatives = [
     "مؤمن",
     "بابا",
     "Parents",
-    imgSteps,
+    imgPlaceholders.steps,
     "بيحب الضحك مع تميم كل يوم.",
     "بابا تميم ورفيقه الأول في كل مغامرة وعند لعب.",
+    "geddo-ahmed",
+    "nagham",
   ],
   [
     2,
@@ -157,9 +207,11 @@ const relatives = [
     "نغم",
     "ماما",
     "Parents",
-    imgSmile,
+    imgPlaceholders.smile,
     "بتغني له أجمل أغاني النوم.",
     "ماما تميم، وحضنها هو المكان الأأمن في الدنيا.",
+    "geddo-ishaq",
+    "momen",
   ],
   // ---- Grandparents ----
   [
@@ -168,9 +220,11 @@ const relatives = [
     "أحمد اللبان",
     "الجد (والد بابا)",
     "Grandparents",
-    imgBirth,
+    imgPlaceholders.birth,
     "بيحب كل مناسبة مع الأحفاد.",
     "جد تميم من ناحية بابا، صاحب القلب الكبير.",
+    null,
+    "teta-nadia",
   ],
   [
     4,
@@ -178,9 +232,11 @@ const relatives = [
     "ناديه نايل",
     "الجدة (والدة بابا)",
     "Grandparents",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "دائمًا بتفتكر كلام حلو يقوله لتميم.",
     "جدة تميم من ناحية بابا، وحكاياتها أحلى حكاية.",
+    null,
+    "geddo-ahmed",
   ],
   [
     5,
@@ -188,9 +244,11 @@ const relatives = [
     "أحمد اسحاق",
     "الجد (والد ماما)",
     "Grandparents",
-    imgSmile,
+    imgPlaceholders.smile,
     "دائمًا بيسأل عن تميم.",
     "جد تميم من ناحية ماما.",
+    null,
+    "teta-magda",
   ],
   [
     6,
@@ -198,9 +256,11 @@ const relatives = [
     "ماجده بدر",
     "الجدة (والدة ماما)",
     "Grandparents",
-    imgSteps,
+    imgPlaceholders.steps,
     "بتعمل أحلى حلويات.",
     "جدة تميم من ناحية ماما، وضحكتها بتحلّي الدنيا.",
+    null,
+    "geddo-ishaq",
   ],
   // ---- Aunts & Uncles (direct) ----
   [
@@ -209,9 +269,11 @@ const relatives = [
     "محمد «مودى»",
     "العم (شقيق بابا)",
     "Aunts & Uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "عنده مودى وزين.",
     "عم تميم، ودايمًا بيجيبه هدية.",
+    "geddo-ahmed",
+    "aunt-aya",
   ],
   [
     8,
@@ -219,9 +281,11 @@ const relatives = [
     "ايه",
     "زوجة العم",
     "Aunts & Uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "أم مودى وزين.",
     "زوجة العم مودى، وبيتها دايماً مليان ضحك.",
+    null,
+    "uncle-mody",
   ],
   [
     9,
@@ -229,9 +293,11 @@ const relatives = [
     "مروان",
     "الخال (شقيق ماما)",
     "Aunts & Uncles",
-    imgSmile,
+    imgPlaceholders.smile,
     "بيحب يلعب مع تميم.",
     "خال تميم، رفيق اللعب والمقالب.",
+    "geddo-ishaq",
+    null,
   ],
   [
     10,
@@ -239,9 +305,11 @@ const relatives = [
     "محمد",
     "الخال (شقيق ماما)",
     "Aunts & Uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "خال تميم من ناحية ماما.",
     "شقيق ماما، ودايمًا فاكر تميم.",
+    "geddo-ishaq",
+    null,
   ],
   [
     11,
@@ -249,9 +317,11 @@ const relatives = [
     "تغريد",
     "الخالة (شقيقة ماما)",
     "Aunts & Uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "عندها بنت اسمها لمار.",
     "شقيقة ماما، وضحكتهما مش بتخلص.",
+    "geddo-ishaq",
+    "uncle-maki",
   ],
   [
     12,
@@ -259,9 +329,11 @@ const relatives = [
     "أحمد مكى",
     "زوج الخالة",
     "Aunts & Uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "زوج الخالة تغريد.",
     "أحمد مكى، زوج الخالة تغريد وأبو لمار.",
+    null,
+    "khala-tagrid",
   ],
   // ---- Cousins ----
   [
@@ -270,9 +342,11 @@ const relatives = [
     "أحمد «مودى»",
     "ابن العم",
     "Cousins",
-    imgSmile,
+    imgPlaceholders.smile,
     "دلعه مودى.",
     "ابن العم، من أولاد عم بابا مودى.",
+    "uncle-mody",
+    null,
   ],
   [
     14,
@@ -280,9 +354,11 @@ const relatives = [
     "زين",
     "ابن العم",
     "Cousins",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "ابن العم.",
     "زين، أصغر أبناء العم مودى.",
+    "uncle-mody",
+    null,
   ],
   [
     15,
@@ -290,9 +366,11 @@ const relatives = [
     "لمار",
     "بنت الخالة",
     "Cousins",
-    imgBirth,
+    imgPlaceholders.birth,
     "بنت الخالة تغريد.",
     "لمار، بنت الخالة تغريد وأحمد مكى.",
+    "khala-tagrid",
+    null,
   ],
   // ---- Great aunts & uncles (paternal grandmother's side) ----
   [
@@ -301,7 +379,7 @@ const relatives = [
     "سعاد",
     "خالة بابا",
     "Great aunts & uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "شقيقة الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -311,7 +389,7 @@ const relatives = [
     "سعيد",
     "خال بابا",
     "Great aunts & uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "شقيق الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -321,7 +399,7 @@ const relatives = [
     "على",
     "خال بابا",
     "Great aunts & uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "شقيق الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -331,7 +409,7 @@ const relatives = [
     "كمال",
     "خال بابا",
     "Great aunts & uncles",
-    imgSmile,
+    imgPlaceholders.smile,
     "شقيق الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -341,7 +419,7 @@ const relatives = [
     "حسن",
     "خال بابا",
     "Great aunts & uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "شقيق الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -351,7 +429,7 @@ const relatives = [
     "انيسه",
     "خالة بابا",
     "Great aunts & uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "شقيقة الجدة ناديه.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -362,7 +440,7 @@ const relatives = [
     "هدى",
     "عمة بابا",
     "Great aunts & uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "شقيقة الجد أحمد اللبان.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -372,7 +450,7 @@ const relatives = [
     "نورا",
     "عمة بابا",
     "Great aunts & uncles",
-    imgSmile,
+    imgPlaceholders.smile,
     "شقيقة الجد أحمد اللبان.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -382,7 +460,7 @@ const relatives = [
     "حسن",
     "عم بابا",
     "Great aunts & uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "شقيق الجد أحمد اللبان.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -392,7 +470,7 @@ const relatives = [
     "جمال",
     "عم بابا",
     "Great aunts & uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "شقيق الجد أحمد اللبان.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -402,7 +480,7 @@ const relatives = [
     "حمدى",
     "عم بابا",
     "Great aunts & uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "شقيق الجد أحمد اللبان.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -413,7 +491,7 @@ const relatives = [
     "وفاء",
     "خالة ماما",
     "Great aunts & uncles",
-    imgSmile,
+    imgPlaceholders.smile,
     "شقيقة الجدة ماجده.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -423,7 +501,7 @@ const relatives = [
     "هدى",
     "خالة ماما",
     "Great aunts & uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "شقيقة الجدة ماجده.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -433,7 +511,7 @@ const relatives = [
     "مها",
     "خالة ماما",
     "Great aunts & uncles",
-    imgBirth,
+    imgPlaceholders.birth,
     "شقيقة الجدة ماجده.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -444,7 +522,7 @@ const relatives = [
     "محمد",
     "عم ماما",
     "Great aunts & uncles",
-    imgSteps,
+    imgPlaceholders.steps,
     "شقيق الجد أحمد اسحاق.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
@@ -454,18 +532,29 @@ const relatives = [
     "حسن",
     "عم ماما",
     "Great aunts & uncles",
-    imgBirthday,
+    imgPlaceholders.birthday,
     "شقيق الجد أحمد اسحاق.",
     "من عائلة تميم الكبيرة الحبيبة.",
   ],
 ];
-for (const [order, id, name, relationship, group, image, fact, bio] of relatives) {
+for (const rel of relatives) {
+  const [order, id, name, relationship, group, image, fact, bio] = rel;
   await sql`
     INSERT INTO relatives (id, name, relationship, "group", image, fact, bio, sort_order)
     VALUES (${id}, ${name}, ${relationship}, ${group}, ${image}, ${fact}, ${bio}, ${order})
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, relationship = EXCLUDED.relationship, "group" = EXCLUDED."group",
-      image = EXCLUDED.image, fact = EXCLUDED.fact, bio = EXCLUDED.bio, sort_order = EXCLUDED.sort_order`;
+      image = EXCLUDED.image, fact = EXCLUDED.fact, bio = EXCLUDED.bio,
+      sort_order = EXCLUDED.sort_order`;
+}
+
+// Second pass: wire up tree links after all rows exist (FK-safe order).
+for (const rel of relatives) {
+  const [, id, , , , , , , parentId, spouseId] = rel;
+  if (parentId || spouseId) {
+    await sql`
+      UPDATE relatives SET parent_id = ${parentId ?? null}, spouse_id = ${spouseId ?? null} WHERE id = ${id}`;
+  }
 }
 
 const letters = [
