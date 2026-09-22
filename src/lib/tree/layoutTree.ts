@@ -136,6 +136,12 @@ const OUTWARD: Record<Side, Vec> = {
   mom: { x: -0.96, y: -0.28 },
 };
 
+/** Steeper climb for the cousin canopy so every generation really rises. */
+const CANOPY: Record<Side, Vec> = {
+  dad: normalize({ x: 0.78, y: -0.62 }),
+  mom: normalize({ x: -0.78, y: -0.62 }),
+};
+
 export function pickPhotoUrl(
   relatives: readonly { id: string; image: string }[],
 ): Record<string, string | null> {
@@ -250,10 +256,16 @@ function makeNode(
   };
 }
 
-/** Iterative separation so ornaments never overlap (same input => same output). */
-function separateNodes(nodes: TreeNode[]) {
-  const MARGIN = 10;
-  for (let iter = 0; iter < 40; iter++) {
+/**
+ * Iterative separation so ornaments never overlap (same input => same output).
+ * Each ornament is treated as a capsule: a circle with a name tag hanging
+ * beneath it, so we keep extra vertical air for the tag. Pinned nodes (the
+ * base seed and the parents) stay glued in place; everyone else is pushed.
+ */
+function separateNodes(nodes: TreeNode[], pin?: (id: string) => boolean) {
+  const GAP_X = 14;
+  const GAP_Y = 26;
+  for (let iter = 0; iter < 60; iter++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
@@ -261,18 +273,33 @@ function separateNodes(nodes: TreeNode[]) {
         const b = nodes[j]!;
         const dx = b.x - a.x;
         const dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy);
-        const minDist = a.size / 2 + b.size / 2 + MARGIN;
-        if (dist < minDist && dist > 0.001) {
-          const push = (minDist - dist) / 2;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          a.x -= nx * push;
-          a.y -= ny * push;
-          b.x += nx * push;
-          b.y += ny * push;
-          moved = true;
+        const minX = a.size / 2 + b.size / 2 + GAP_X;
+        const minY = a.size / 2 + b.size / 2 + GAP_Y;
+        const ox = minX - Math.abs(dx);
+        const oy = minY - Math.abs(dy);
+        if (ox <= 0 || oy <= 0) continue;
+        if (ox <= oy) {
+          const dir = dx === 0 ? 1 : Math.sign(dx);
+          const aPin = pin?.(a.id) ?? false;
+          const bPin = pin?.(b.id) ?? false;
+          if (aPin && bPin) continue;
+          const total = ox;
+          const moveA = aPin ? 0 : total / (bPin ? 1 : 2);
+          const moveB = bPin ? 0 : total / (aPin ? 1 : 2);
+          a.x -= dir * moveA;
+          b.x += dir * moveB;
+        } else {
+          const dir = dy === 0 ? 1 : Math.sign(dy);
+          const aPin = pin?.(a.id) ?? false;
+          const bPin = pin?.(b.id) ?? false;
+          if (aPin && bPin) continue;
+          const total = oy;
+          const moveA = aPin ? 0 : total / (bPin ? 1 : 2);
+          const moveB = bPin ? 0 : total / (aPin ? 1 : 2);
+          a.y -= dir * moveA;
+          b.y += dir * moveB;
         }
+        moved = true;
       }
     }
     if (!moved) break;
@@ -319,8 +346,8 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     kids.forEach((kid, k) => {
       const rnd = seededRandom(`cd-${side}-${kid.id}`);
       const perp = { x: -dir.y, y: dir.x };
-      const spread = (k - (kids.length - 1) / 2) * 34;
-      const step = 92 + depth * 30;
+      const spread = (k - (kids.length - 1) / 2) * 46;
+      const step = 116 + depth * 40;
       const pos = {
         x: from.x + dir.x * step + perp.x * spread + rnd.range(-8, 8),
         y: from.y + dir.y * step + perp.y * spread + rnd.range(-8, 8),
@@ -337,8 +364,8 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       });
       if (kid.children.length > 0) {
         const nDir = normalize({
-          x: dir.x + perp.x * spread * 0.015,
-          y: dir.y + perp.y * spread * 0.015,
+          x: dir.x + perp.x * spread * 0.02,
+          y: dir.y + perp.y * spread * 0.02,
         });
         placeDescendants(kid.children, pos, nDir, depth + 1, [pos, ...chainTail], side);
       }
@@ -380,7 +407,7 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
 
   // ---- Parents at the ♥ knot ----
   if (data.parents?.person) {
-    const baba = makeNode(data.parents.person, meet.x + 72, meet.y + 2, "parent", "dad");
+    const baba = makeNode(data.parents.person, meet.x + 86, meet.y + 2, "parent", "dad");
     baba.photoUrl = photos[data.parents.person.id] ?? null;
     add(baba);
     chains[baba.id] = [
@@ -390,7 +417,7 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     ];
   }
   if (data.parents?.spouse) {
-    const mama = makeNode(data.parents.spouse, meet.x - 72, meet.y + 2, "parent", "mom");
+    const mama = makeNode(data.parents.spouse, meet.x - 86, meet.y + 2, "parent", "mom");
     mama.photoUrl = photos[data.parents.spouse.id] ?? null;
     add(mama);
     chains[mama.id] = [
@@ -431,19 +458,19 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     const plaqueT = 0.55;
     const plaqueTIdx = Math.round(plaqueT * 12);
     const pp = quadPoint(cfg.start, ctrl, cfg.tip, plaqueT);
-    const gx = clamp(pp.x + px * 88, 140, W - 140);
+    const gx = clamp(pp.x + px * 104, 140, W - 140);
     const gy = pp.y + 8;
 
     const gp = branch.grandparents.person;
     const gm = branch.grandparents.spouse;
     if (gp) {
-      const n = makeNode(gp, gx + 56 * px, gy, "grandparent", side);
+      const n = makeNode(gp, gx + 64 * px, gy, "grandparent", side);
       n.photoUrl = photos[gp.id] ?? null;
       add(n);
       chains[n.id] = chainVia({ x: n.x, y: n.y }, trunkSamples, plaqueTIdx);
     }
     if (gm) {
-      const n = makeNode(gm, gx - 56 * px, gy, "grandparent", side);
+      const n = makeNode(gm, gx - 64 * px, gy, "grandparent", side);
       n.photoUrl = photos[gm.id] ?? null;
       add(n);
       chains[n.id] = chainVia({ x: n.x, y: n.y }, trunkSamples, plaqueTIdx);
@@ -465,8 +492,8 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       const row = Math.floor(i / 2);
       const rowJit = row * 2;
       const pos = {
-        x: gx + px * (150 + col * 52) + gr.range(-10, 10),
-        y: gy - 62 + row * 76 + gr.range(-12, 12),
+        x: gx + px * (120 + col * 62) + gr.range(-8, 8),
+        y: gy - 70 + row * 92 + gr.range(-12, 12),
       };
       const tAdj = clamp(0.5 + row * 0.05, 0.5, 0.76);
       const anch = quadPoint(cfg.start, ctrl, cfg.tip, tAdj);
@@ -488,15 +515,15 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     sibs.forEach((sib, i) => {
       const sr = seededRandom(`sib-${side}-${i}`);
       const alt = i % 2 === 0 ? 1 : -1;
-      const t = clamp(0.27 + i * 0.055, 0.27, 0.55);
+      const t = clamp(0.27 + i * 0.075, 0.27, 0.55);
       const tIdx = Math.round(t * 12);
       const trunkP = quadPoint(cfg.start, ctrl, cfg.tip, t);
-      const len = 132 + (alt === 1 ? 6 : 66);
+      const len = 148 + (alt === 1 ? 10 : 74);
       const pc = { x: trunkP.x + out.x * len, y: trunkP.y + out.y * len };
 
       const person = sib.couple.person;
       const spouse = sib.couple.spouse;
-      const personPos = { x: pc.x + px * 28, y: pc.y + sr.range(-4, 4) };
+      const personPos = { x: pc.x + px * 34, y: pc.y + sr.range(-4, 4) };
       const pNode = makeNode(person, personPos.x, personPos.y, "side", side);
       pNode.photoUrl = photos[person.id] ?? null;
       add(pNode);
@@ -518,7 +545,7 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       if (spouse) {
         const sNode = makeNode(
           spouse,
-          personPos.x - 60 * px,
+          personPos.x - 76 * px,
           personPos.y + sr.range(-4, 4),
           "side",
           side,
@@ -543,11 +570,17 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
         { x: meet.x, y: meet.y },
         { x: crown.x, y: crown.y },
       ];
-      placeDescendants(sib.children, { x: pc.x, y: pc.y }, out, 0, chainTail, side);
+      placeDescendants(sib.children, { x: pc.x, y: pc.y }, CANOPY[side], 0, chainTail, side);
     });
 
     scatterLeaves(side, cfg, trunkSamples, sibs, leaves);
   }
+
+  // Tamim and the parents anchor the composition; neighbours must move around them.
+  const pinned = new Set<string>(["tamim"]);
+  if (data.parents?.person) pinned.add(data.parents.person.id);
+  if (data.parents?.spouse) pinned.add(data.parents.spouse.id);
+  const isPinned = (id: string) => pinned.has(id);
 
   const clampNodes = () => {
     for (const n of nodes) {
@@ -556,9 +589,9 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     }
   };
 
-  separateNodes(nodes);
+  separateNodes(nodes, isPinned);
   clampNodes();
-  separateNodes(nodes);
+  separateNodes(nodes, isPinned);
   clampNodes();
 
   // hearts sit exactly halfway between their pair after separation
