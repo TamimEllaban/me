@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layoutTree, pickPhotoUrl, SCENE } from "./layoutTree.ts";
+import { countOverlaps, layoutTree, pickPhotoUrl, SCENE } from "./layoutTree.ts";
+import { buildFamilyData } from "../family-data.ts";
+import { PRODUCTION_RELATIVES } from "./productionFixture.ts";
 import type {
   FamilyData,
   FamilyBranch,
@@ -273,7 +275,7 @@ test("Tamim is the seed at the base, below everyone else", () => {
   const layout = layoutTree(data, DEPS);
   const tamim = layout.byId["tamim"]!;
   assert.equal(tamim.kind, "tamim");
-  assert.equal(tamim.x, SCENE.crown.x);
+  assert.equal(tamim.x, layout.W / 2, "Tamim sits centred on the scene");
   assert.equal(tamim.y, SCENE.crown.y);
   for (const id of ids) {
     assert.ok(layout.byId[id]!.y < tamim.y, `${id} is above the base seed`);
@@ -311,8 +313,8 @@ test("every node stays inside the scene bounds", () => {
   const { data } = makeData(false);
   const layout = layoutTree(data, DEPS);
   for (const n of layout.nodes) {
-    assert.ok(n.x >= 70 && n.x <= SCENE.W - 70, `${n.id} x in bounds`);
-    assert.ok(n.y >= 90 && n.y <= SCENE.H - 64, `${n.id} y in bounds`);
+    assert.ok(n.x >= 70 && n.x <= layout.W - 70, `${n.id} x in bounds`);
+    assert.ok(n.y >= 90 && n.y <= layout.H - 64, `${n.id} y in bounds`);
   }
 });
 
@@ -350,8 +352,8 @@ test("adding a new person places them deterministically, in-bounds, without brea
   const SLACK = 16;
   const nodes = grownLayout.nodes;
   for (const n of nodes) {
-    assert.ok(n.x >= 70 && n.x <= SCENE.W - 70, `${n.id} x in bounds`);
-    assert.ok(n.y >= 90 && n.y <= SCENE.H - 64, `${n.id} y in bounds`);
+    assert.ok(n.x >= 70 && n.x <= grownLayout.W - 70, `${n.id} x in bounds`);
+    assert.ok(n.y >= 90 && n.y <= grownLayout.H - 64, `${n.id} y in bounds`);
   }
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
@@ -378,4 +380,45 @@ test("pickPhotoUrl dedupes so an image is never reused by two people", () => {
   assert.equal(out["c"], null, "duplicate of a is dropped");
   assert.equal(out["d"], null, "empty image means no photo");
   assert.equal(out["e"], null, "duplicate of b is dropped");
+});
+
+test("production dataset: every relative gets one node, zero bbox overlaps at any zoom", () => {
+  const data = buildFamilyData(PRODUCTION_RELATIVES);
+  const layout = layoutTree(data, DEPS);
+  assert.equal(
+    layout.nodes.length,
+    32,
+    "one node per production relative (duplicate greats deduped)",
+  );
+  assert.equal(Object.keys(layout.byId).length, layout.nodes.length, "ids stay unique");
+  assert.equal(countOverlaps(layout.nodes), 0, "no bbox overlaps in the real 31-relative dataset");
+
+  for (const n of layout.nodes) {
+    assert.ok(n.x >= 70 && n.x <= layout.W - 70, `${n.id} x in bounds`);
+    assert.ok(n.y >= 90 && n.y <= layout.H - 64, `${n.id} y in bounds`);
+  }
+});
+
+test("production dataset: roots live in a dedicated lane above the parents/uncles row", () => {
+  const data = buildFamilyData(PRODUCTION_RELATIVES);
+  const layout = layoutTree(data, DEPS);
+  const roots = layout.nodes.filter((n) => n.kind === "root");
+  const gen2 = layout.nodes.filter((n) => n.kind === "parent" || n.kind === "side");
+  assert.equal(roots.length, 16, "11 paternal + 5 maternal great aunts/uncles");
+  for (const r of roots) {
+    for (const g of gen2) {
+      assert.ok(r.y < g.y, `${r.id} (root) sits above the ${g.id} parents/uncles lane`);
+    }
+  }
+});
+
+test("synthetic stress dataset also keeps zero bbox overlaps", () => {
+  const base = layoutTree(makeData(false).data, DEPS);
+  assert.equal(countOverlaps(base.nodes), 0, "base synthetic layout is overlap-free");
+  const grown = layoutTree(makeData(true).data, DEPS);
+  assert.equal(countOverlaps(grown.nodes), 0, "added siblings/cousins still overlap-free");
+  for (const n of grown.nodes) {
+    assert.ok(n.x >= 70 && n.x <= grown.W - 70, `${n.id} x in bounds`);
+    assert.ok(n.y >= 90 && n.y <= grown.H - 64, `${n.id} y in bounds`);
+  }
 });

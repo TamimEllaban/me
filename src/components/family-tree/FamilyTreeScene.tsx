@@ -9,8 +9,8 @@ import {
 import type { RelativeLike } from "@/components/relative-editor";
 import {
   layoutTree,
+  nodeBounds,
   pickPhotoUrl,
-  SCENE,
   type FocusGroup,
   type TreeNode,
   type Vec,
@@ -87,6 +87,11 @@ export function FamilyTreeScene({
   const [editId, setEditId] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [debug, setDebug] = useState(false);
+
+  useEffect(() => {
+    setDebug(window.location.search.includes("debugLayout"));
+  }, []);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -132,16 +137,19 @@ export function FamilyTreeScene({
 
   const boxOf = (f: FocusGroup): { cx: number; cy: number; w: number; h: number } => {
     const ids = layout.nodes.filter((n) => (f === "all" ? true : n.focusGroup === f));
-    if (ids.length === 0) return { cx: 600, cy: 400, w: 400, h: 600 };
+    if (ids.length === 0) {
+      return { cx: layout.W / 2, cy: layout.H / 2, w: 600, h: 800 };
+    }
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
     for (const n of ids) {
-      minX = Math.min(minX, n.x - n.size / 2);
-      maxX = Math.max(maxX, n.x + n.size / 2);
-      minY = Math.min(minY, n.y - n.size / 2);
-      maxY = Math.max(maxY, n.y + n.size / 2);
+      const b = nodeBounds(n);
+      minX = Math.min(minX, b.left);
+      maxX = Math.max(maxX, b.right);
+      minY = Math.min(minY, b.top);
+      maxY = Math.max(maxY, b.bottom);
     }
     const pad = f === "all" ? 60 : 90;
     return {
@@ -179,7 +187,21 @@ export function FamilyTreeScene({
   // ---------- init ----------
   useLayoutEffect(() => {
     // frame Tamim + parents at the base on first load
-    fitBox({ cx: 600, cy: 1450, w: 620, h: 560 }, false);
+    const frameIds = layout.nodes.filter((n) => n.kind === "tamim" || n.kind === "parent");
+    if (frameIds.length > 0) {
+      let l = Infinity;
+      let t = Infinity;
+      let r = -Infinity;
+      let b = -Infinity;
+      for (const n of frameIds) {
+        const q = nodeBounds(n);
+        l = Math.min(l, q.left);
+        t = Math.min(t, q.top);
+        r = Math.max(r, q.right);
+        b = Math.max(b, q.bottom);
+      }
+      fitBox({ cx: (l + r) / 2, cy: (t + b) / 2, w: r - l + 140, h: b - t + 140 }, false);
+    }
     applyWorld();
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
@@ -421,7 +443,7 @@ export function FamilyTreeScene({
     const count = Math.min(24, 14 + rand.int(0, 10));
     return Array.from({ length: count }, (_, i) => ({
       id: i,
-      x: rand.range(20, SCENE.W - 20),
+      x: rand.range(20, layout.W - 20),
       y: rand.range(20, 900),
       size: night ? rand.range(3, 6) : rand.range(2, 5),
       dur: rand.range(9, 18),
@@ -473,12 +495,12 @@ export function FamilyTreeScene({
       <div
         ref={worldRef}
         className="absolute left-0 top-0 will-change-transform"
-        style={{ width: SCENE.W, height: SCENE.H }}
+        style={{ width: layout.W, height: layout.H }}
       >
         {/* parallax backdrop */}
         <div ref={bgWrapRef} className="absolute inset-0 will-change-transform">
-          <svg width={SCENE.W} height={SCENE.H} aria-hidden="true">
-            <SceneBackground night={night} par={{ x: 0, y: 0 }} />
+          <svg width={layout.W} height={layout.H} aria-hidden="true">
+            <SceneBackground night={night} par={{ x: 0, y: 0 }} w={layout.W} />
             <defs>
               <radialGradient id="soilGrad">
                 <stop offset="0%" stopColor="#7c4c2a" />
@@ -486,8 +508,8 @@ export function FamilyTreeScene({
               </radialGradient>
             </defs>
             <ellipse
-              cx={SCENE.crown.x}
-              cy={SCENE.crown.y + 56}
+              cx={layout.crown.x}
+              cy={layout.crown.y + 56}
               rx={140}
               ry={22}
               fill="url(#soilGrad)"
@@ -497,7 +519,7 @@ export function FamilyTreeScene({
         </div>
 
         {/* wood geometry + leaves + light path */}
-        <svg width={SCENE.W} height={SCENE.H} className="absolute inset-0" aria-hidden="true">
+        <svg width={layout.W} height={layout.H} className="absolute inset-0" aria-hidden="true">
           <g className="trunk-grow">
             <TrunkBranch branches={layout.branches} />
           </g>
@@ -520,6 +542,27 @@ export function FamilyTreeScene({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
+            </g>
+          )}
+          {debug && (
+            <g
+              pointerEvents="none"
+              fill="rgba(220,38,38,0.10)"
+              stroke="rgba(220,38,38,0.6)"
+              strokeWidth={1}
+            >
+              {layout.nodes.map((n) => {
+                const b = nodeBounds(n);
+                return (
+                  <rect
+                    key={n.id}
+                    x={b.left}
+                    y={b.top}
+                    width={b.right - b.left}
+                    height={b.bottom - b.top}
+                  />
+                );
+              })}
             </g>
           )}
         </svg>
