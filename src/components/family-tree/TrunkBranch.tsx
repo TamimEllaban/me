@@ -1,0 +1,121 @@
+import { memo } from "react";
+import type { BranchPath } from "@/lib/tree/layoutTree";
+
+/** SVG defs: one reusable bark-texture pattern and one soft wood gradient. */
+export function TreeArtDefs() {
+  return (
+    <defs>
+      <filter id="barkTurb" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.02 0.16"
+          numOctaves="3"
+          seed="11"
+          result="n"
+        />
+        <feColorMatrix
+          in="n"
+          type="matrix"
+          values="0 0 0 0 0.36  0 0 0 0 0.23  0 0 0 0 0.13  0 0 0 0.55 0"
+        />
+      </filter>
+      <pattern id="barkTex" width="90" height="90" patternUnits="userSpaceOnUse">
+        <rect width="90" height="90" fill="none" />
+        <rect width="90" height="90" filter="url(#barkTurb)" />
+      </pattern>
+      <linearGradient id="plaqueGrad" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0" stopColor="#b4824e" />
+        <stop offset="0.5" stopColor="#9c6b3d" />
+        <stop offset="1" stopColor="#7d5330" />
+      </linearGradient>
+      <linearGradient id="rootGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#6e4b2a" />
+        <stop offset="1" stopColor="#4a3018" />
+      </linearGradient>
+      <linearGradient id="twigGrad" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stopColor="#9a7a50" />
+        <stop offset="1" stopColor="#6d4c2f" />
+      </linearGradient>
+    </defs>
+  );
+}
+
+const FILLS = {
+  bark: "#7a5a38",
+  twig: "url(#twigGrad)",
+  root: "url(#rootGrad)",
+  plaque: "url(#plaqueGrad)",
+  soil: "#7e5936",
+} as const;
+
+function spinePath(points: { x: number; y: number }[]): string {
+  return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+}
+
+/** The woody scene geometry: trunks, twigs, roots, the grandparents' plaques. */
+export const TrunkBranch = memo(function TrunkBranch({ branches }: { branches: BranchPath[] }) {
+  return (
+    <g>
+      <TreeArtDefs />
+      {branches.map((b, i) => {
+        if (b.fill === "plaque") {
+          return (
+            <g key={i}>
+              <path
+                d={b.d}
+                fill={FILLS.plaque}
+                stroke="#5d3d1f"
+                strokeWidth={3}
+                strokeLinejoin="round"
+                opacity={0.96}
+              />
+              <path
+                d={b.d}
+                fill="none"
+                stroke="#e7c795"
+                strokeWidth={1.5}
+                strokeLinejoin="round"
+                opacity={0.5}
+                transform="translate(0,2)"
+              />
+            </g>
+          );
+        }
+        if (b.fill === "root" || b.fill === "twig") {
+          return (
+            <path
+              key={i}
+              d={b.d}
+              fill={FILLS[b.fill]}
+              stroke="#3f2a14"
+              strokeWidth={1}
+              opacity={0.9}
+            />
+          );
+        }
+        return (
+          <g key={i}>
+            <path
+              d={b.d}
+              fill={FILLS.bark}
+              stroke="#4a3018"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+            />
+            <path d={b.d} fill="url(#barkTex)" opacity={0.55} />
+            {b.spine && (
+              <path
+                d={spinePath(b.spine)}
+                fill="none"
+                stroke="#c9a26b"
+                strokeWidth={4}
+                strokeLinecap="round"
+                opacity={0.32}
+              />
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+});

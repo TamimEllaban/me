@@ -399,3 +399,215 @@
     min-width: 0;
   }
 }
+
+/* ---------- Illustrated family tree scene ---------- */
+
+.scene-viewport {
+  font-family: var(--font-body, inherit);
+  background: var(--tree-paper);
+}
+.scene-viewport:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary) inset;
+}
+
+/* gentle sway uses the standalone `rotate` property so it never fights the
+   translate(-50%, -50%) placement transform */
+.ornament-wob {
+  transform-origin: 50% 8%;
+  animation: ornamentSway var(--wob-dur, 6s) ease-in-out infinite alternate;
+  animation-delay: var(--wob-delay, 0s);
+}
+@keyframes ornamentSway {
+  from {
+    rotate: -1.6deg;
+  }
+  to {
+    rotate: 1.6deg;
+  }
+}
+
+/* Tamim's golden blossom breathing glow */
+.gem-breathe {
+  animation: gemBreathe 3.2s ease-in-out infinite;
+}
+@keyframes gemBreathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 12px 3px rgba(255, 214, 94, 0.4),
+      0 0 34px 10px rgba(255, 200, 80, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 20px 7px rgba(255, 214, 94, 0.6),
+      0 0 52px 16px rgba(255, 200, 80, 0.3);
+  }
+}
+
+/* trunks draw upward on first load */
+.trunk-grow {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: trunkGrow 1.5s cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+@keyframes trunkGrow {
+  from {
+    transform: scaleY(0.02);
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* leaves pop in, staggered */
+.leaf-pop {
+  animation: leafPop 0.5s ease-out both;
+}
+@keyframes leafPop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.92;
+  }
+}
+
+/* path of light along the branch up to Tamim */
+.light-path {
+  opacity: 0;
+  animation: lightIn 0.5s ease 0.15s forwards;
+}
+.light-path polyline:last-child {
+  stroke-dasharray: 1 14;
+  animation: lightDash 1s linear infinite;
+}
+@keyframes lightIn {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes lightDash {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+
+/* floating particles */
+.particle {
+  position: absolute;
+  border-radius: 9999px;
+  will-change: transform;
+  animation: pollenDrift 12s ease-in-out infinite alternate;
+}
+.pollen {
+  background: radial-gradient(circle at 35% 35%, #ffe7a3, #d9a441 70%);
+}
+.firefly {
+  background: radial-gradient(circle at 35% 35%, #fff8cf, #ffce5c 75%);
+  box-shadow: 0 0 9px 3px rgba(255, 210, 100, 0.6);
+  animation:
+    pollenDrift 14s ease-in-out infinite alternate,
+    fireflyPulse 1.3s ease-in-out infinite alternate;
+}
+@keyframes pollenDrift {
+  from {
+    transform: translate(calc(var(--drift, 1) * 0px), 0);
+  }
+  to {
+    transform: translate(calc(var(--drift, 1) * 30px), -46px);
+  }
+}
+@keyframes fireflyPulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* occasional bird crossing the sky */
+.bird {
+  display: block;
+  position: absolute;
+  left: -50px;
+  top: 190px;
+  width: 34px;
+  height: 26px;
+  opacity: 0;
+  animation: birdPass 40s linear 14s infinite;
+}
+.bird::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 30px;
+  height: 11px;
+  border-radius: 50%;
+  background: #5a3d22;
+}
+.bird::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 2px;
+  width: 16px;
+  height: 12px;
+  border-radius: 60% 12% 60% 40%;
+  background: #7a5a38;
+  transform: rotate(-12deg);
+}
+@keyframes birdPass {
+  0% {
+    transform: translate(-8vw, 4px);
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(116vw, -40px);
+    opacity: 0;
+  }
+}
+
+/* pause everything when the tab is hidden */
+.scene-paused * {
+  animation-play-state: paused !important;
+}
+
+/* auto-degraded / low-power mode: kill sway, particles, bird */
+.no-effects .ornament-wob,
+.no-effects .gem-breathe,
+.no-effects .particle,
+.no-effects .bird {
+  animation: none !important;
+}
+.no-effects .particle,
+.no-effects .bird {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ornament-wob,
+  .gem-breathe,
+  .trunk-grow,
+  .leaf-pop,
+  .particle,
+  .bird {
+    animation: none !important;
+  }
+  .light-path {
+    opacity: 1;
+  }
+}
