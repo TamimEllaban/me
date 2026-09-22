@@ -16,6 +16,9 @@ export type FamilyPerson = {
   isTamimParent?: boolean;
 };
 
+/** A descendant (cousin) that may itself have children and grandchildren. */
+export type FamilyDescendant = FamilyPerson & { children: FamilyDescendant[] };
+
 export type FamilyCouple = {
   person: FamilyPerson;
   spouse?: FamilyPerson;
@@ -24,7 +27,7 @@ export type FamilyCouple = {
 export type BranchChild = {
   couple: FamilyCouple;
   isTamimParent: boolean;
-  children: FamilyPerson[];
+  children: FamilyDescendant[];
 };
 
 export type FamilyBranch = {
@@ -104,6 +107,32 @@ function directKids(relatives: RelativeLike[], parentIds: Set<string>): Relative
   return relatives.filter((r) => r.parentId && parentIds.has(r.parentId));
 }
 
+/**
+ * Recursive cousins — children, grandchildren, great-grandchildren of the
+ * aunts/uncles all follow the parent link, so new generations appear in the
+ * tree without touching layout code.
+ */
+function buildDescendants(
+  relatives: RelativeLike[],
+  parentIds: Set<string>,
+  depth: number,
+): FamilyDescendant[] {
+  return directKids(relatives, parentIds).map((c) => ({
+    id: c.id,
+    name: c.name,
+    role: friendlyRole(c),
+    relative: c,
+    children:
+      depth > 1
+        ? buildDescendants(
+            relatives,
+            new Set([c.id, c.spouseId].filter(Boolean) as string[]),
+            depth - 1,
+          )
+        : [],
+  }));
+}
+
 function buildBranch(
   relatives: RelativeLike[],
   side: "dad" | "mom",
@@ -122,12 +151,7 @@ function buildBranch(
     return {
       couple,
       isTamimParent: kid.id === parent.id,
-      children: directKids(relatives, kidIds).map((c) => ({
-        id: c.id,
-        name: c.name,
-        role: friendlyRole(c),
-        relative: c,
-      })),
+      children: buildDescendants(relatives, kidIds, 3),
     };
   });
 

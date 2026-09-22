@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trees } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RelativeLike } from "@/components/relative-editor";
-import type { FamilyData, FamilyPerson } from "@/lib/family-data";
+import type { FamilyData, FamilyDescendant, FamilyPerson } from "@/lib/family-data";
 import { DEFAULT_RELATIVE_IMAGE } from "@/lib/db";
 import { PersonDialog } from "./PersonDialog";
 
@@ -37,6 +37,26 @@ function PersonButton({ person, onClick }: { person: FamilyPerson; onClick: () =
       </b>
       <span className="text-xs text-muted-foreground">{person.role}</span>
     </button>
+  );
+}
+
+function DescendantChips({
+  kids,
+  onOpen,
+}: {
+  kids: FamilyDescendant[];
+  onOpen: (id: string) => void;
+}) {
+  if (kids.length === 0) return null;
+  return (
+    <ul className="mt-3 flex flex-wrap justify-center gap-2">
+      {kids.map((c) => (
+        <li key={c.id} className="flex flex-wrap items-start justify-center gap-2">
+          <PersonButton person={c} onClick={() => onOpen(c.id)} />
+          <DescendantChips kids={c.children} onOpen={onOpen} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -161,15 +181,7 @@ export function FamilyTreeList({
                       <PersonButton person={spouse} onClick={() => setOpenId(spouse.id)} />
                     )}
                   </div>
-                  {child.children.length > 0 && (
-                    <ul className="mt-3 flex flex-wrap justify-center gap-2">
-                      {child.children.map((c) => (
-                        <li key={c.id}>
-                          <PersonButton person={c} onClick={() => setOpenId(c.id)} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <DescendantChips kids={child.children} onOpen={setOpenId} />
                 </li>
               );
             })}

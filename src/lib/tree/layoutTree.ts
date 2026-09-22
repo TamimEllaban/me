@@ -6,26 +6,32 @@
  * The scene is built entirely from the `relatives` table (the same DB the
  * /relatives page and the "Add person" dialog write to). `buildFamilyData`
  * maps every relative into one strict two-branch family structure, then
- * `layoutTree` assigns every person a deterministic place:
+ * `layoutTree` assigns every person a deterministic place.
  *
- *   - "Parents" (بابا / ماما)      -> the ♥ knot where the two trunks meet
- *   - "Grandparents" (جدو / تيتة)  -> the carved plaque at each trunk's base
+ * The tree grows UP, with Tamim as the living seed at the bottom:
+ *
+ *   - Tamim                        -> the big golden base at the bottom
+ *   - "Parents" (بابا / ماما)       -> the ♥ knot right above Tamim
  *   - "Aunts & Uncles" (siblings
- *     of the parents)              -> side branches off the matching trunk
- *   - "Cousins"                    -> fruits hanging past their parents
- *   - "Great aunts & uncles"       -> root knots under the matching trunk
+ *     of the parents)              -> side branches climbing the trunks
+ *   - "Grandparents" (جدو / تيتة)  -> the carved plaque further up the trunk
+ *   - "Great aunts & uncles" (أخوات
+ *     الجد والجدة)                 -> small knots flanking each plaque
+ *   - "Cousins" and their own
+ *     children & grandchildren     -> canopy fruits at the tips, growing up
  *
  * For a new person to land in the right spot, fill the relationship + family
  * group in the Add-person dialog as usual (parent for children, matching
- * relationship label for عمو/عمة/خالو/خالتو/ابن عمو…). No code change is ever
- * needed — the new relative appears on the next render and ornaments animate
- * to their updated positions.
+ * relationship label for عمو/عمة/خالو/خالتو/ابن عمو…). To add a grandchild,
+ * set the parent to the cousin instead — the descendant cascade places every
+ * generation above. No code change is ever needed: the new relative appears
+ * on the next render and ornaments animate to their updated positions.
  *
  * Determinism: same input => identical output. Every organic wiggle is seeded
  * by the person id, so the scene is stable between renders and visits.
  */
 
-import type { FamilyData, FamilyPerson } from "@/lib/family-data";
+import type { FamilyData, FamilyDescendant, FamilyPerson } from "@/lib/family-data";
 import { friendlyRole } from "../family-data.ts";
 import { seededRandom, type SeededRandom } from "./seededRandom.ts";
 
@@ -108,25 +114,26 @@ export const SIZES: Record<NodeKind, number> = {
   grandparent: 72,
   side: 56,
   cousin: 48,
-  root: 40,
+  root: 42,
 };
 
 export const SCENE = {
   W: 1200,
   H: 1650,
-  groundY: 1432,
-  crown: { x: 600, y: 150 },
-  meet: { x: 600, y: 486 },
+  groundY: 1500,
+  crown: { x: 600, y: 1490 },
+  meet: { x: 600, y: 1408 },
 } as const;
 
-const TRUNK: Record<Side, { base: Vec; pull: Vec }> = {
-  dad: { base: { x: 872, y: 1408 }, pull: { x: 78, y: -16 } },
-  mom: { base: { x: 328, y: 1408 }, pull: { x: -78, y: -16 } },
+const TRUNK: Record<Side, { start: Vec; tip: Vec; pull: Vec }> = {
+  dad: { start: { x: 610, y: 1408 }, tip: { x: 846, y: 648 }, pull: { x: 96, y: -26 } },
+  mom: { start: { x: 590, y: 1408 }, tip: { x: 354, y: 648 }, pull: { x: -96, y: -26 } },
 };
 
+/** Pointing up + outward for each side. */
 const OUTWARD: Record<Side, Vec> = {
-  dad: { x: 0.962, y: -0.277 },
-  mom: { x: -0.962, y: 0.277 },
+  dad: { x: 0.96, y: -0.28 },
+  mom: { x: -0.96, y: -0.28 },
 };
 
 export function pickPhotoUrl(
@@ -194,7 +201,6 @@ function taperedPath(
     fwd.push({ x: p.x + nx * (w + jit), y: p.y + ny * (w + jit) });
   }
   const s: string[] = fwd.map((p) => `${p.x} ${p.y}`);
-  // back along the mirrored side
   for (let i = N; i >= 0; i--) {
     const t = i / N;
     const p = quadPoint(a, ctrl, b, t);
@@ -244,13 +250,6 @@ function makeNode(
   };
 }
 
-function wayToCrown(from: Vec, meet: Vec, crown: Vec, viaTrunk?: Vec[]): Chain {
-  const pts: Vec[] = [{ x: from.x, y: from.y }];
-  if (viaTrunk) for (const p of viaTrunk) pts.push({ ...p });
-  pts.push({ x: meet.x, y: meet.y }, { x: crown.x, y: crown.y });
-  return pts;
-}
-
 /** Iterative separation so ornaments never overlap (same input => same output). */
 function separateNodes(nodes: TreeNode[]) {
   const MARGIN = 10;
@@ -296,7 +295,57 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     byId[n.id] = n;
   };
 
-  // ---- Crown: Tamim ----
+  /** Path from a node back down to Tamim, following the trunk from tIdx to its base. */
+  const down = (samples: Vec[], tIdx: number): Chain => samples.slice(0, tIdx + 1).reverse();
+  const chainVia = (pos: Vec, samples: Vec[], tIdx: number): Chain => [
+    pos,
+    ...down(samples, tIdx),
+    { x: meet.x, y: meet.y },
+    { x: crown.x, y: crown.y },
+  ];
+
+  /**
+   * Places a cousin and then cascades to their children / grandchildren,
+   * each generation stepping further outward and upward.
+   */
+  function placeDescendants(
+    kids: FamilyDescendant[],
+    from: Vec,
+    dir: Vec,
+    depth: number,
+    chainTail: Chain,
+    side: Side,
+  ) {
+    kids.forEach((kid, k) => {
+      const rnd = seededRandom(`cd-${side}-${kid.id}`);
+      const perp = { x: -dir.y, y: dir.x };
+      const spread = (k - (kids.length - 1) / 2) * 34;
+      const step = 92 + depth * 30;
+      const pos = {
+        x: from.x + dir.x * step + perp.x * spread + rnd.range(-8, 8),
+        y: from.y + dir.y * step + perp.y * spread + rnd.range(-8, 8),
+      };
+      const n = makeNode(kid, pos.x, pos.y, "cousin", side);
+      n.size = Math.max(34, SIZES.cousin - depth * 7);
+      n.photoUrl = photos[kid.id] ?? null;
+      add(n);
+      chains[kid.id] = [pos, ...chainTail];
+      branches.push({
+        d: taperedPath(from, pos, 8, 4, { x: 0, y: -2 }, rnd),
+        fill: "twig",
+        side,
+      });
+      if (kid.children.length > 0) {
+        const nDir = normalize({
+          x: dir.x + perp.x * spread * 0.015,
+          y: dir.y + perp.y * spread * 0.015,
+        });
+        placeDescendants(kid.children, pos, nDir, depth + 1, [pos, ...chainTail], side);
+      }
+    });
+  }
+
+  // ---- Tamim: the seed at the base ----
   const tamim: TreeNode = {
     id: "tamim",
     kind: "tamim",
@@ -314,136 +363,144 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
   add(tamim);
   chains["tamim"] = [{ ...crown }];
 
-  // ---- Stem between the merge point and the crown ----
-  const stemCtrl = quadCtrl(
-    meet,
-    { x: crown.x, y: crown.y + 16 },
-    { x: 0, y: -30 },
-    seededRandom("stem"),
-  );
+  // ---- short stem: seed up to the heart knot ----
   branches.push({
     d: taperedPath(
-      meet,
-      { x: crown.x, y: crown.y + 16 },
-      26,
-      18,
-      { x: 0, y: -30 },
+      { x: 600, y: 1456 },
+      { x: 600, y: meet.y + 6 },
+      30,
+      22,
+      { x: 0, y: -6 },
       seededRandom("stem"),
     ),
     fill: "bark",
     side: "stem",
-    spine: sampleBezier(meet, stemCtrl, { x: crown.x, y: crown.y + 16 }, 8),
+    spine: sampleBezier({ x: 600, y: 1456 }, { x: 600, y: 1434 }, { x: 600, y: meet.y + 6 }, 5),
   });
 
   // ---- Parents at the ♥ knot ----
   if (data.parents?.person) {
-    const baba = makeNode(data.parents.person, meet.x + 72, meet.y + 84, "parent", "dad");
+    const baba = makeNode(data.parents.person, meet.x + 72, meet.y + 2, "parent", "dad");
     baba.photoUrl = photos[data.parents.person.id] ?? null;
     add(baba);
-    chains[baba.id] = wayToCrown({ x: baba.x, y: baba.y }, meet, crown);
+    chains[baba.id] = [
+      { x: baba.x, y: baba.y },
+      { x: meet.x, y: meet.y },
+      { x: crown.x, y: crown.y },
+    ];
   }
   if (data.parents?.spouse) {
-    const mama = makeNode(data.parents.spouse, meet.x - 72, meet.y + 84, "parent", "mom");
+    const mama = makeNode(data.parents.spouse, meet.x - 72, meet.y + 2, "parent", "mom");
     mama.photoUrl = photos[data.parents.spouse.id] ?? null;
     add(mama);
-    chains[mama.id] = wayToCrown({ x: mama.x, y: mama.y }, meet, crown);
+    chains[mama.id] = [
+      { x: mama.x, y: mama.y },
+      { x: meet.x, y: meet.y },
+      { x: crown.x, y: crown.y },
+    ];
   }
   if (data.parents?.person && data.parents.spouse) {
     couples.push({
       ids: [data.parents.person.id, data.parents.spouse.id],
       x: meet.x,
-      y: meet.y + 84,
+      y: meet.y,
       side: "dad",
       size: SIZES.parent,
     });
   }
 
-  // ---- The two trunks and everything that hangs from them ----
+  // ---- The two trunks and everything that climbs them ----
   for (const branch of data.branches) {
     const side = branch.side;
     const cfg = TRUNK[side];
     const rand = seededRandom(`trunk-${side}`);
+    const px = side === "dad" ? 1 : -1;
     const out = OUTWARD[side];
-    const ctrl = quadCtrl(cfg.base, meet, cfg.pull, rand);
+    const ctrl = quadCtrl(cfg.start, cfg.tip, cfg.pull, rand);
 
     branches.push({
-      d: taperedPath(cfg.base, meet, 62, 26, cfg.pull, rand),
+      d: taperedPath(cfg.start, cfg.tip, 60, 24, cfg.pull, rand),
       fill: "bark",
       side,
-      spine: sampleBezier(cfg.base, ctrl, meet, 10),
+      spine: sampleBezier(cfg.start, ctrl, cfg.tip, 10),
     });
 
-    // grandparents plaque at the base
-    const gx = side === "dad" ? 870 : 330;
-    const baseY = 1240;
+    const trunkSamples = sampleBezier(cfg.start, ctrl, cfg.tip, 12);
+
+    // ---- grandparents plaque (one rung up the trunk) ----
+    const plaqueT = 0.55;
+    const plaqueTIdx = Math.round(plaqueT * 12);
+    const pp = quadPoint(cfg.start, ctrl, cfg.tip, plaqueT);
+    const gx = clamp(pp.x + px * 88, 140, W - 140);
+    const gy = pp.y + 8;
+
     const gp = branch.grandparents.person;
     const gm = branch.grandparents.spouse;
     if (gp) {
-      const n = makeNode(gp, gx + 56, baseY, "grandparent", side);
+      const n = makeNode(gp, gx + 56 * px, gy, "grandparent", side);
       n.photoUrl = photos[gp.id] ?? null;
       add(n);
-      chains[n.id] = wayToCrown(
-        { x: n.x, y: n.y + 30 },
-        meet,
-        crown,
-        sampleBezier(cfg.base, quadCtrl(cfg.base, meet, cfg.pull, rand), meet, 6).map((p) => ({
-          x: p.x,
-          y: p.y,
-        })),
-      );
+      chains[n.id] = chainVia({ x: n.x, y: n.y }, trunkSamples, plaqueTIdx);
     }
     if (gm) {
-      const n = makeNode(gm, gx - 56, baseY, "grandparent", side);
+      const n = makeNode(gm, gx - 56 * px, gy, "grandparent", side);
       n.photoUrl = photos[gm.id] ?? null;
       add(n);
-      chains[n.id] = wayToCrown(
-        { x: n.x, y: n.y + 30 },
-        meet,
-        crown,
-        sampleBezier(cfg.base, quadCtrl(cfg.base, meet, cfg.pull, rand), meet, 6).map((p) => ({
-          x: p.x,
-          y: p.y,
-        })),
-      );
+      chains[n.id] = chainVia({ x: n.x, y: n.y }, trunkSamples, plaqueTIdx);
     }
     if (gp && gm)
-      couples.push({ ids: [gp.id, gm.id], x: gx, y: baseY, side, size: SIZES.grandparent });
+      couples.push({ ids: [gp.id, gm.id], x: gx, y: gy, side, size: SIZES.grandparent });
 
     branches.push({
-      d: roundedRect(gx - 136, baseY - SIZES.grandparent / 2 - 34, 272, 128, 20),
+      d: roundedRect(gx - 136, gy - SIZES.grandparent / 2 - 34, 272, 128, 20),
       fill: "plaque",
       side,
     });
 
-    // trunk sample path (shared for chains + twigs)
-    const trunkSamples = sampleBezier(cfg.base, ctrl, meet, 12);
-    const chainFrom = (from: Vec, tIndex: number): Chain =>
-      wayToCrown(
-        from,
-        meet,
-        crown,
-        trunkSamples.slice(tIndex).map((p) => ({ x: p.x, y: p.y })),
-      );
+    // ---- great aunts & uncles: the grandparents' siblings, flanking the plaque ----
+    const greats = [...branch.grandfatherSiblings, ...branch.grandmotherSiblings];
+    greats.forEach((g, i) => {
+      const gr = seededRandom(`great-${side}-${g.id}`);
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const rowJit = row * 2;
+      const pos = {
+        x: gx + px * (150 + col * 52) + gr.range(-10, 10),
+        y: gy - 62 + row * 76 + gr.range(-12, 12),
+      };
+      const tAdj = clamp(0.5 + row * 0.05, 0.5, 0.76);
+      const anch = quadPoint(cfg.start, ctrl, cfg.tip, tAdj);
+      const anchIdx = Math.round(tAdj * 12);
+      const n = makeNode(g, pos.x, pos.y, "root", side);
+      n.photoUrl = photos[g.id] ?? null;
+      n.role = friendlyRole(g.relative);
+      add(n);
+      chains[n.id] = chainVia(pos, trunkSamples, anchIdx);
+      branches.push({
+        d: taperedPath(anch, pos, 13, 4, { x: 0, y: 4 }, gr),
+        fill: "root",
+        side,
+      });
+    });
 
+    // ---- aunts & uncles: the parents' siblings, climbing side branches ----
     const sibs = branch.children.filter((c) => !c.isTamimParent);
     sibs.forEach((sib, i) => {
-      const sibRand = seededRandom(`sib-${side}-${sib.couple.person.id}`);
+      const sr = seededRandom(`sib-${side}-${i}`);
       const alt = i % 2 === 0 ? 1 : -1;
-      const t = clamp(0.34 + i * 0.15, 0.36, 0.88);
-      const tIndex = Math.round(t * 12);
-      const trunkP = quadPoint(cfg.base, ctrl, meet, t);
-      const len = alt === 1 ? 168 : 120;
-      const pc = { x: trunkP.x + out.x * len * alt, y: trunkP.y + out.y * len * alt };
+      const t = clamp(0.27 + i * 0.055, 0.27, 0.55);
+      const tIdx = Math.round(t * 12);
+      const trunkP = quadPoint(cfg.start, ctrl, cfg.tip, t);
+      const len = 132 + (alt === 1 ? 6 : 66);
+      const pc = { x: trunkP.x + out.x * len, y: trunkP.y + out.y * len };
 
       const person = sib.couple.person;
       const spouse = sib.couple.spouse;
-      const px = side === "dad" ? 1 : -1;
-
-      const personPos = { x: pc.x + 31 * px, y: pc.y + sibRand.range(-4, 4) };
+      const personPos = { x: pc.x + px * 28, y: pc.y + sr.range(-4, 4) };
       const pNode = makeNode(person, personPos.x, personPos.y, "side", side);
       pNode.photoUrl = photos[person.id] ?? null;
       add(pNode);
-      chains[pNode.id] = chainFrom({ x: pc.x, y: pc.y }, tIndex);
+      chains[pNode.id] = chainVia(personPos, trunkSamples, tIdx);
 
       branches.push({
         d: taperedPath(
@@ -461,8 +518,8 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       if (spouse) {
         const sNode = makeNode(
           spouse,
-          personPos.x - 62 * px,
-          personPos.y + sibRand.range(-4, 4),
+          personPos.x - 60 * px,
+          personPos.y + sr.range(-4, 4),
           "side",
           side,
         );
@@ -470,7 +527,7 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
         sNode.pairWith = person.id;
         pNode.pairWith = spouse.id;
         add(sNode);
-        chains[sNode.id] = chainFrom({ x: pc.x, y: pc.y }, tIndex);
+        chains[sNode.id] = chainVia({ x: sNode.x, y: sNode.y }, trunkSamples, tIdx);
         couples.push({
           ids: [person.id, spouse.id],
           x: (personPos.x + sNode.x) / 2,
@@ -480,57 +537,13 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
         });
       }
 
-      sib.children.forEach((kid, k) => {
-        const kRand = seededRandom(`cousin-${side}-${kid.id}`);
-        const step = alt === 1 ? 84 : 72;
-        const d = len * alt + 112 + step * k;
-        const pos = {
-          x: pc.x + out.x * d + kRand.range(-6, 6),
-          y: pc.y + out.y * d + kRand.range(-6, 6),
-        };
-        const n = makeNode(kid, pos.x, pos.y, "cousin", side);
-        n.photoUrl = photos[kid.id] ?? null;
-        add(n);
-        chains[n.id] = chainFrom(pos, tIndex);
-        branches.push({
-          d: taperedPath(pc, pos, 9, 4, { x: 0, y: 0 }, seededRandom(`ctwig-${side}-${kid.id}`)),
-          fill: "twig",
-          side,
-        });
-      });
-    });
-
-    // roots: great aunts & uncles as root knots beneath the soil
-    const greats = [...branch.grandfatherSiblings, ...branch.grandmotherSiblings];
-    const base = { x: cfg.base.x, y: groundY + 8 };
-    greats.forEach((person, i) => {
-      const frac = greats.length <= 1 ? 0.5 : i / (greats.length - 1);
-      const deg = lerp(side === "dad" ? 116 : 64, side === "dad" ? 172 : 8, frac);
-      const a = (deg * Math.PI) / 180;
-      const r = 86 + i * 20;
-      const pos = { x: base.x + Math.cos(a) * r, y: base.y + Math.sin(a) * r + 6 };
-      const n = makeNode(person, pos.x, pos.y, "root", side);
-      n.photoUrl = photos[person.id] ?? null;
-      n.role = friendlyRole(person.relative);
-      add(n);
-      chains[n.id] = wayToCrown(
-        pos,
-        meet,
-        crown,
-        sampleBezier(cfg.base, ctrl, meet, 6).map((p) => ({ x: p.x, y: p.y })),
-      );
-      branches.push({
-        d: taperedPath(
-          base,
-          pos,
-          15,
-          5,
-          { x: 0, y: 12 },
-          seededRandom(`root-${side}-${person.id}`),
-        ),
-        fill: "root",
-        side,
-      });
+      const chainTail: Chain = [
+        pc,
+        ...down(trunkSamples, tIdx),
+        { x: meet.x, y: meet.y },
+        { x: crown.x, y: crown.y },
+      ];
+      placeDescendants(sib.children, { x: pc.x, y: pc.y }, out, 0, chainTail, side);
     });
 
     scatterLeaves(side, cfg, trunkSamples, sibs, leaves);
@@ -558,20 +571,21 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     }
   }
 
-  const roots: RootsGroup[] = data.branches.map((branch) => ({
-    side: branch.side,
-    base: { x: TRUNK[branch.side].base.x, y: groundY + 8 },
-    labelPos: { x: TRUNK[branch.side].base.x, y: groundY + 64 },
-  }));
+  const roots: RootsGroup[] = [];
 
   return { W, H, groundY, crown, meet, nodes, byId, couples, branches, roots, leaves, chains };
 }
 
+function normalize(v: Vec): Vec {
+  const len = Math.hypot(v.x, v.y) || 1;
+  return { x: v.x / len, y: v.y / len };
+}
+
 function scatterLeaves(
   side: Side,
-  cfg: { base: Vec; pull: Vec },
+  cfg: { start: Vec; tip: Vec; pull: Vec },
   trunkSamples: Vec[],
-  sibs: { couple: { person: FamilyPerson }; children: FamilyPerson[] }[],
+  sibs: { couple: { person: FamilyPerson }; children: FamilyDescendant[] }[],
   leaves: Leaf[],
 ) {
   const rand = seededRandom(`leaves-${side}`);
@@ -582,7 +596,7 @@ function scatterLeaves(
         Math.min(trunkSamples.length - 1, Math.floor(rand.range(0.1, 0.95) * trunkSamples.length))
       ]!;
     const off = rand.range(12, 30);
-    const sign = cfg.base.x >= 600 ? 1 : -1;
+    const sign = cfg.start.x >= 600 ? 1 : -1;
     leaves.push({
       x: p.x + (rand.next() > 0.45 ? sign : -sign) * off,
       y: p.y + rand.range(-16, 16),
@@ -592,13 +606,12 @@ function scatterLeaves(
       side,
     });
   }
-  // a few leaves tucked beside each couple
   for (const sib of sibs) {
     const k = seededRandom(`leaf-sib-${side}-${sib.couple.person.id}`);
     for (let j = 0; j < 3; j++) {
       leaves.push({
         x: clusterX(side, sib.couple.person.id, j) + k.range(-14, 14),
-        y: 700 + k.range(60, 340),
+        y: k.range(300, 1250),
         r: k.range(9, 15),
         rot: k.range(-70, 70),
         variant: k.int(1, 3) as 1 | 2 | 3,
@@ -610,5 +623,5 @@ function scatterLeaves(
 
 function clusterX(side: Side, id: string, j: number) {
   const rand = seededRandom(`leaf-x-${side}-${id}-${j}`);
-  return side === "dad" ? 600 + rand.range(140, 360) : 600 - rand.range(140, 360);
+  return side === "dad" ? 600 + rand.range(140, 340) : 600 - rand.range(140, 340);
 }

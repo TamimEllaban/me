@@ -21,7 +21,6 @@ import { PersonOrnament } from "./PersonOrnament";
 import { CoupleOrnament } from "./CoupleOrnament";
 import { TrunkBranch } from "./TrunkBranch";
 import { LeafField } from "./LeafField";
-import { RootsGroup } from "./RootsGroup";
 import { SceneBackground } from "./SceneBackground";
 import { BranchFocusTabs, SceneToolbar } from "./BranchFocusTabs";
 import { PersonPopover } from "./PersonPopover";
@@ -179,8 +178,8 @@ export function FamilyTreeScene({
 
   // ---------- init ----------
   useLayoutEffect(() => {
-    // frame the crown + parents couple on first load
-    fitBox({ cx: 600, cy: 400, w: 620, h: 840 }, false);
+    // frame Tamim + parents at the base on first load
+    fitBox({ cx: 600, cy: 1450, w: 620, h: 560 }, false);
     applyWorld();
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
@@ -480,10 +479,21 @@ export function FamilyTreeScene({
         <div ref={bgWrapRef} className="absolute inset-0 will-change-transform">
           <svg width={SCENE.W} height={SCENE.H} aria-hidden="true">
             <SceneBackground night={night} par={{ x: 0, y: 0 }} />
+            <defs>
+              <radialGradient id="soilGrad">
+                <stop offset="0%" stopColor="#7c4c2a" />
+                <stop offset="100%" stopColor="#8a5a34" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse
+              cx={SCENE.crown.x}
+              cy={SCENE.crown.y + 56}
+              rx={140}
+              ry={22}
+              fill="url(#soilGrad)"
+              opacity={0.9}
+            />
           </svg>
-          <div className="absolute inset-0 pointer-events-none">
-            <RootsGroup roots={layout.roots} night={night} />
-          </div>
         </div>
 
         {/* wood geometry + leaves + light path */}

@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { layoutTree, pickPhotoUrl, SCENE } from "./layoutTree.ts";
-import type { FamilyData, FamilyBranch, FamilyCouple, FamilyPerson } from "@/lib/family-data";
+import type {
+  FamilyData,
+  FamilyBranch,
+  FamilyCouple,
+  FamilyDescendant,
+  FamilyPerson,
+} from "@/lib/family-data";
 
 type Rel = {
   id: string;
@@ -36,12 +42,22 @@ const rel = (
 
 const fp = (r: Rel): FamilyPerson => ({ id: r.id, name: r.name, role: "", relative: r });
 
+const dc = (r: Rel): FamilyDescendant => ({
+  id: r.id,
+  name: r.name,
+  role: "",
+  relative: r,
+  children: [],
+});
+
 function buildBranchData(base: FamilyBranch, extra: boolean): FamilyBranch {
   if (!extra) return base;
 
   const extraUncle = rel("s6", "وليد", "العم (شقيق بابا)", "Aunts & Uncles", "dgp", "sp6");
   const extraAunt = rel("sp6", "سوزان", "زوجة العم", "Aunts & Uncles", null, "s6");
-  const extraCousin = rel("k5", "حسن", "ابن العم", "Cousins", "s6", null);
+  const extraCousin = dc(rel("k5", "حسن", "ابن العم", "Cousins", "s6"));
+  const grandKid = dc(rel("gw1", "رؤى", "بنت ابن العم", "Cousins", "k5"));
+  extraCousin.children = [grandKid];
   return {
     ...base,
     grandfatherSiblings: [
@@ -53,7 +69,7 @@ function buildBranchData(base: FamilyBranch, extra: boolean): FamilyBranch {
       {
         couple: { person: fp(extraUncle), spouse: fp(extraAunt) },
         isTamimParent: false,
-        children: [fp(extraCousin)],
+        children: [extraCousin],
       },
     ],
   };
@@ -104,14 +120,14 @@ export function makeData(extra: boolean): { data: FamilyData; ids: string[] } {
           },
           isTamimParent: false,
           children: [
-            fp(rel("k1", "يوسف", "ابن العم", "Cousins", "s1")),
-            fp(rel("k2", "مريم", "بنت العم", "Cousins", "s1")),
+            dc(rel("k1", "يوسف", "ابن العم", "Cousins", "s1")),
+            dc(rel("k2", "مريم", "بنت العم", "Cousins", "s1")),
           ],
         },
         {
           couple: { person: fp(rel("s2", "منى", "العمة (شقيقة بابا)", "Aunts & Uncles", "dgp")) },
           isTamimParent: false,
-          children: [fp(rel("k3", "نور", "بنت العمة", "Cousins", "s2"))],
+          children: [dc(rel("k3", "نور", "بنت العمة", "Cousins", "s2"))],
         },
         {
           couple: {
@@ -127,7 +143,7 @@ export function makeData(extra: boolean): { data: FamilyData; ids: string[] } {
             spouse: fp(rel("sp4", "غادة", "زوجة العم", "Aunts & Uncles", null, "s4")),
           },
           isTamimParent: false,
-          children: [fp(rel("k4", "ليلى", "بنت العم", "Cousins", "s4"))],
+          children: [dc(rel("k4", "ليلى", "بنت العم", "Cousins", "s4"))],
         },
         {
           couple: { person: fp(rel("s5", "أشرف", "العم (شقيق بابا)", "Aunts & Uncles", "dgp")) },
@@ -160,8 +176,8 @@ export function makeData(extra: boolean): { data: FamilyData; ids: string[] } {
         },
         isTamimParent: false,
         children: [
-          fp(rel("mk1", "كريم", "ابن الخال", "Cousins", "m1")),
-          fp(rel("mk2", "نور", "بنت الخال", "Cousins", "m1")),
+          dc(rel("mk1", "كريم", "ابن الخال", "Cousins", "m1")),
+          dc(rel("mk2", "نور", "بنت الخال", "Cousins", "m1")),
         ],
       },
       {
@@ -170,7 +186,7 @@ export function makeData(extra: boolean): { data: FamilyData; ids: string[] } {
           spouse: fp(rel("ms2", "ماجد", "زوج الخالة", "Aunts & Uncles", null, "m2")),
         },
         isTamimParent: false,
-        children: [fp(rel("mk3", "زياد", "ابن الخالة", "Cousins", "m2"))],
+        children: [dc(rel("mk3", "زياد", "ابن الخالة", "Cousins", "m2"))],
       },
       {
         couple: { person: fp(rel("m3", "طه", "الخال (شقيق ماما)", "Aunts & Uncles", "mgp")) },
@@ -204,28 +220,29 @@ export function makeData(extra: boolean): { data: FamilyData; ids: string[] } {
 
   const ids: string[] = [];
   const walk = (r: Rel) => ids.push(r.id);
+  const walkDesc = (d: FamilyDescendant) => {
+    walk(d.relative as Rel);
+    d.children.forEach(walkDesc);
+  };
+  const walkKid = (kid: (typeof dadBranch.children)[number]) => {
+    walk(kid.couple.person.relative as Rel);
+    if (kid.couple.spouse) walk(kid.couple.spouse.relative as Rel);
+    kid.children.forEach(walkDesc);
+  };
   [
     dgp,
     dgm,
     ...dadBranch.grandfatherSiblings.map((p) => p.relative as Rel),
     ...dadBranch.grandmotherSiblings.map((p) => p.relative as Rel),
   ].forEach(walk);
-  for (const kid of dadBranch.children) {
-    walk(kid.couple.person.relative as Rel);
-    if (kid.couple.spouse) walk(kid.couple.spouse.relative as Rel);
-    for (const c of kid.children) walk(c.relative as Rel);
-  }
+  for (const kid of dadBranch.children) walkKid(kid);
   [
     mgp,
     mgm,
     ...momBranch.grandfatherSiblings.map((p) => p.relative as Rel),
     ...momBranch.grandmotherSiblings.map((p) => p.relative as Rel),
   ].forEach(walk);
-  for (const kid of momBranch.children) {
-    walk(kid.couple.person.relative as Rel);
-    if (kid.couple.spouse) walk(kid.couple.spouse.relative as Rel);
-    for (const c of kid.children) walk(c.relative as Rel);
-  }
+  for (const kid of momBranch.children) walkKid(kid);
 
   return { data, ids };
 }
@@ -251,7 +268,7 @@ test("every relative (and Tamim) gets a unique node", () => {
   }
 });
 
-test("Tamim sits at the crown, higher than everyone else", () => {
+test("Tamim is the seed at the base, below everyone else", () => {
   const { data, ids } = makeData(false);
   const layout = layoutTree(data, DEPS);
   const tamim = layout.byId["tamim"]!;
@@ -259,7 +276,7 @@ test("Tamim sits at the crown, higher than everyone else", () => {
   assert.equal(tamim.x, SCENE.crown.x);
   assert.equal(tamim.y, SCENE.crown.y);
   for (const id of ids) {
-    assert.ok(layout.byId[id]!.y > tamim.y, `${id} is below the crown`);
+    assert.ok(layout.byId[id]!.y < tamim.y, `${id} is above the base seed`);
   }
 });
 
@@ -316,12 +333,19 @@ test("adding a new person places them deterministically, in-bounds, without brea
   const grownLayout = layoutTree(grown.data, DEPS);
   assert.equal(
     grownLayout.nodes.length,
-    baseLayout.nodes.length + 4,
-    "one new couple + child + great",
+    baseLayout.nodes.length + 5,
+    "one new couple + cousin + grandchild + great",
   );
 
   const again = layoutTree(grown.data, DEPS);
   assert.deepEqual(again, grownLayout, "still deterministic");
+
+  const gw1 = grownLayout.byId["gw1"];
+  assert.ok(gw1, "deep grandchild of the new uncle is placed as a node");
+  assert.ok(
+    Array.isArray(again.chains["gw1"]) && again.chains["gw1"]!.length > 0,
+    "grandchild has a light path",
+  );
 
   const SLACK = 16;
   const nodes = grownLayout.nodes;
