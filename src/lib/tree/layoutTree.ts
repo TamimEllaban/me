@@ -320,45 +320,40 @@ function cousinSize(depth: number) {
 
 /**
  * Iterative separation so ornaments never overlap (same input => same output).
- * Each ornament is treated as a capsule (circle + name tag), so vertical air
- * accounts for tag room. Pinned nodes (the base seed and the parents) stay
- * glued in place; everyone else is pushed. Lane placement already guarantees
- * MIN_GAP everywhere, so this is only a safety net.
+ * Each ornament is separated by its full bounding box (avatar circle + name
+ * tag), inflated by MIN_GAP, so long names are respected exactly like the
+ * overlap check. Pinned nodes (the base seed and the parents) stay glued in
+ * place; everyone else is pushed. Lane placement already guarantees MIN_GAP
+ * everywhere, so this is only a safety net.
  */
 function separateNodes(nodes: TreeNode[], pin?: (id: string) => boolean) {
-  const GAP_X = 14;
-  const GAP_Y = 26;
   for (let iter = 0; iter < 60; iter++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i]!;
         const b = nodes[j]!;
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const minX = a.size / 2 + b.size / 2 + GAP_X;
-        const minY = a.size / 2 + b.size / 2 + GAP_Y;
-        const ox = minX - Math.abs(dx);
-        const oy = minY - Math.abs(dy);
-        if (ox <= 0 || oy <= 0) continue;
-        if (ox <= oy) {
-          const dir = dx === 0 ? 1 : Math.sign(dx);
-          const aPin = pin?.(a.id) ?? false;
-          const bPin = pin?.(b.id) ?? false;
-          if (aPin && bPin) continue;
-          const total = ox;
-          const moveA = aPin ? 0 : total / (bPin ? 1 : 2);
-          const moveB = bPin ? 0 : total / (aPin ? 1 : 2);
+        const ra = pad(nodeBounds(a), MIN_GAP / 2);
+        const rb = pad(nodeBounds(b), MIN_GAP / 2);
+
+        const overlapX = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+        const overlapY = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+
+        const aPin = pin?.(a.id) ?? false;
+        const bPin = pin?.(b.id) ?? false;
+        if (aPin && bPin) continue;
+
+        if (overlapX <= overlapY) {
+          const dir = b.x >= a.x ? 1 : -1;
+          const moveA = aPin ? 0 : overlapX / (bPin ? 1 : 2);
+          const moveB = bPin ? 0 : overlapX / (aPin ? 1 : 2);
           a.x -= dir * moveA;
           b.x += dir * moveB;
         } else {
-          const dir = dy === 0 ? 1 : Math.sign(dy);
-          const aPin = pin?.(a.id) ?? false;
-          const bPin = pin?.(b.id) ?? false;
-          if (aPin && bPin) continue;
-          const total = oy;
-          const moveA = aPin ? 0 : total / (bPin ? 1 : 2);
-          const moveB = bPin ? 0 : total / (aPin ? 1 : 2);
+          const dir = b.y >= a.y ? 1 : -1;
+          const moveA = aPin ? 0 : overlapY / (bPin ? 1 : 2);
+          const moveB = bPin ? 0 : overlapY / (aPin ? 1 : 2);
           a.y -= dir * moveA;
           b.y += dir * moveB;
         }

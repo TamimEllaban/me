@@ -26,7 +26,7 @@ import { BranchFocusTabs, SceneToolbar } from "./BranchFocusTabs";
 import { PersonPopover } from "./PersonPopover";
 import { PersonDialog } from "./PersonDialog";
 
-const MIN_K = 0.18;
+const MIN_K = 0.05;
 const MAX_K = 3.2;
 
 type Camera = { k: number; tx: number; ty: number };
@@ -179,16 +179,32 @@ export function FamilyTreeScene({
     fitBox(boxOf(f), animated);
   };
 
+  // Contain the whole layout (W x H) inside the viewport: the largest scale
+  // with nothing cut off. This is the single step used by both the open view
+  // and the reset button.
+  const fitToViewport = (animated: boolean) => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const k = Math.min(MAX_K, (r.width - 16) / layout.W, (r.height - 16) / layout.H);
+    camRef.current = {
+      k,
+      tx: r.width / 2 - (layout.W * k) / 2,
+      ty: r.height / 2 - (layout.H * k) / 2,
+    };
+    if (animated) easeWorld();
+    else applyWorld();
+  };
+
   const resetView = () => {
     setFocus("all");
-    fitTo("all", true);
+    fitToViewport(true);
   };
 
   // ---------- init ----------
   useLayoutEffect(() => {
-    // open on the view that shows the whole tree
-    fitTo("all", false);
-    applyWorld();
+    // open on the fit-to-viewport view of the whole tree
+    fitToViewport(false);
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
     const onChange = () => setReducedMotion(rm.matches);
@@ -277,6 +293,10 @@ export function FamilyTreeScene({
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    // let buttons/tabs/inputs keep their own clicks — capturing the pointer
+    // here would retarget the click to the scene and swallow them
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest("button, a, input, textarea, select, [role='tab']")) return;
     if (!grown) {
       setGrown(true);
       return;
@@ -381,6 +401,7 @@ export function FamilyTreeScene({
     };
     el.addEventListener("wheel", wheel as EventListener, { passive: false });
     return () => el.removeEventListener("wheel", wheel as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---------- keyboard navigation (a11y mirror) ----------
