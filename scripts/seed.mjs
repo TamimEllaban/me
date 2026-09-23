@@ -91,6 +91,17 @@ await sql`
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
 
+await sql`
+  CREATE TABLE IF NOT EXISTS gallery_items (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'image',
+    source_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    date TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`;
+
 // Upsert the child content.
 await sql`
   INSERT INTO child (id, name, birthdate, welcome, hero_image)

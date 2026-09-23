@@ -1,13 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BookOpen,
+  Calendar,
   Check,
   ChevronDown,
+  Clapperboard,
   CloudUpload,
   Home,
   Images,
   Link2,
+  Plus,
   Save,
+  Sparkles,
+  Tag,
   Trash2,
   Upload,
   Users,
@@ -21,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   deleteFamilyPhoto,
+  getGalleryData,
   getHomeData,
   getMemoriesData,
   getRelativesData,
@@ -32,18 +38,44 @@ import {
 } from "@/lib/gate.functions";
 import { uploadPhotoDirect } from "@/lib/photo-upload";
 
+const DEFAULT_GALLERY_CATEGORIES = [
+  "01 - يوم الولاده",
+  "02 - السبوع والعقيقه",
+  "03 - تميم وهو صغير",
+  "04 - المناسبات",
+  "05 - الرحلات",
+  "06 - العمره",
+  "07 - مع العيله",
+  "08 - اللعب والانشطه",
+  "09 - الاكل",
+  "10 - يوميات وصحه",
+  "00 - زفاف الوالدين",
+];
+
+const DEFAULT_MEMORY_CATEGORIES = [
+  "Milestones",
+  "Celebrations",
+  "Everyday moments",
+  "Adventures",
+];
+
 async function loadManage() {
-  const [home, memories, relatives] = await Promise.all([
+  const [home, memories, relatives, gallery] = await Promise.all([
     getHomeData(),
     getMemoriesData(),
     getRelativesData(),
+    getGalleryData(),
   ]);
   const photos = await listFamilyPhotos();
+  const galleryCategories = Array.from(
+    new Set([...DEFAULT_GALLERY_CATEGORIES, ...gallery.categories.map((c) => c.name)]),
+  );
   return {
     child: home.child,
     memories: memories.memories,
     relatives: relatives.relatives,
     photos: photos.photos,
+    galleryCategories,
   };
 }
 
@@ -92,19 +124,25 @@ const places = [
   {
     kind: "hero" as const,
     title: "Front page",
-    copy: "The big photo everyone sees first",
+    copy: "The big photo everyone sees first on the home page",
     icon: Home,
+  },
+  {
+    kind: "gallery" as const,
+    title: "Gallery album",
+    copy: "Tamim's cinema album organized by category",
+    icon: Clapperboard,
   },
   {
     kind: "memory" as const,
     title: "A memory",
-    copy: "One of the little chapters on the timeline",
+    copy: "Milestone or chapter on the timeline",
     icon: BookOpen,
   },
   {
     kind: "relative" as const,
     title: "A relative",
-    copy: "A person's card on the family pages",
+    copy: "A person's card in the family circle",
     icon: Users,
   },
 ];
@@ -112,11 +150,13 @@ const places = [
 function PhotoFlow({
   memories,
   relatives,
+  galleryCategories,
   currentUrl,
   onPhotoReady,
 }: {
   memories: LoaderData["memories"];
   relatives: LoaderData["relatives"];
+  galleryCategories: string[];
   currentUrl: string | null;
   onPhotoReady: (url: string) => void;
 }) {
@@ -126,19 +166,46 @@ function PhotoFlow({
   const [name, setName] = useState("");
   const [busyUpload, setBusyUpload] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Where should it show? states
   const [kind, setKind] = useState<(typeof places)[number]["kind"]>("hero");
-  const [targetId, setTargetId] = useState("");
   const [busyPlace, setBusyPlace] = useState(false);
   const [placed, setPlaced] = useState<string | null>(null);
+
+  // Gallery-specific states
+  const [selectedGalleryCategory, setSelectedGalleryCategory] = useState<string>(
+    galleryCategories[0] || "03 - تميم وهو صغير",
+  );
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [galleryPhotoTitle, setGalleryPhotoTitle] = useState("");
+  const [galleryDate, setGalleryDate] = useState("");
+
+  // Memory-specific states
+  const [memoryMode, setMemoryMode] = useState<"existing" | "new">("existing");
+  const [memoryCategoryFilter, setMemoryCategoryFilter] = useState("All");
+  const [targetMemoryId, setTargetMemoryId] = useState("");
+  const [newMemoryTitle, setNewMemoryTitle] = useState("");
+  const [newMemoryCategory, setNewMemoryCategory] = useState("Milestones");
+  const [newMemoryDate, setNewMemoryDate] = useState("");
+  const [newMemoryStory, setNewMemoryStory] = useState("");
+
+  // Relative-specific states
+  const [relativeGroupFilter, setRelativeGroupFilter] = useState("All");
+  const [targetRelativeId, setTargetRelativeId] = useState("");
+
   const [linkUrl, setLinkUrl] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   async function handleFile(f: File) {
     try {
       const dataUrl = await resizeToDataUrl(f);
+      const cleanBaseName = f.name.replace(/\.[^.]+$/, "");
       setFile(f);
       setPreview(dataUrl);
-      setName(f.name.replace(/\.[^.]+$/, ""));
+      setName(cleanBaseName);
+      if (!galleryPhotoTitle) setGalleryPhotoTitle(cleanBaseName);
+      if (!newMemoryTitle) setNewMemoryTitle(cleanBaseName);
       setUploadError(null);
       setPlaced(null);
     } catch (err) {
@@ -158,6 +225,8 @@ function PhotoFlow({
       return;
     }
     onPhotoReady(result);
+    if (!galleryPhotoTitle && name) setGalleryPhotoTitle(name);
+    if (!newMemoryTitle && name) setNewMemoryTitle(name);
     setFile(null);
     setPreview(null);
     setName("");
@@ -173,25 +242,123 @@ function PhotoFlow({
     if (!currentUrl) return;
     setBusyPlace(true);
     setPlaced(null);
-    const id = kind === "hero" ? undefined : targetId;
-    const { ok } = await setFamilyPhoto({ data: { kind, id, url: currentUrl } });
+
+    let ok = false;
+    let label = "";
+
+    try {
+      if (kind === "hero") {
+        const res = await setFamilyPhoto({ data: { kind: "hero", url: currentUrl } });
+        ok = res.ok;
+        label = "Front page photo updated — it's live now!";
+      } else if (kind === "gallery") {
+        const effectiveCategory = isCustomCategory
+          ? customCategoryInput.trim() || "03 - تميم وهو صغير"
+          : selectedGalleryCategory;
+        const effectiveTitle = galleryPhotoTitle.trim() || name.trim() || "Tamim photo";
+        const res = await setFamilyPhoto({
+          data: {
+            kind: "gallery",
+            url: currentUrl,
+            name: effectiveTitle,
+            category: effectiveCategory,
+            date: galleryDate.trim(),
+          },
+        });
+        ok = res.ok;
+        label = `Added to Gallery under "${effectiveCategory}" — it's live now in the cinema!`;
+      } else if (kind === "memory") {
+        if (memoryMode === "new") {
+          const effectiveTitle = newMemoryTitle.trim() || name.trim() || "A precious moment";
+          const res = await setFamilyPhoto({
+            data: {
+              kind: "memory",
+              id: "new",
+              url: currentUrl,
+              name: effectiveTitle,
+              category: newMemoryCategory,
+              date: newMemoryDate.trim() || new Date().toISOString().slice(0, 10),
+              story: newMemoryStory.trim(),
+            },
+          });
+          ok = res.ok;
+          label = `New memory chapter "${effectiveTitle}" created — it's live on the timeline!`;
+          setNewMemoryTitle("");
+          setNewMemoryStory("");
+        } else {
+          const res = await setFamilyPhoto({
+            data: {
+              kind: "memory",
+              id: targetMemoryId,
+              url: currentUrl,
+            },
+          });
+          ok = res.ok;
+          const chosenMemory = memories.find((m) => m.id === targetMemoryId);
+          label = `Photo placed on "${chosenMemory?.title || "that memory"}" — it's live now!`;
+        }
+      } else if (kind === "relative") {
+        const res = await setFamilyPhoto({
+          data: {
+            kind: "relative",
+            id: targetRelativeId,
+            url: currentUrl,
+          },
+        });
+        ok = res.ok;
+        const chosenRelative = relatives.find((r) => r.id === targetRelativeId);
+        label = `Photo placed on ${chosenRelative?.name || "relative"}'s card — it's live now!`;
+      }
+    } catch {
+      ok = false;
+    }
+
     setBusyPlace(false);
     if (ok) {
-      const label =
-        kind === "hero"
-          ? "Front page updated — it's live now."
-          : kind === "memory"
-            ? "That memory got its new photo — it's live now."
-            : "That relative's card got its new photo — it's live now.";
       setPlaced(label);
-      setTargetId("");
     } else {
-      setPlaced("Couldn't save — try again in a moment.");
+      setPlaced("Couldn't save — please try again in a moment.");
     }
   }
 
-  const items = kind === "memory" ? memories : relatives;
-  const itemsLabel = kind === "memory" ? "Which memory?" : "Which relative?";
+  // Filtered lists for Memories & Relatives
+  const allMemoryCategories = [
+    "All",
+    ...new Set([...DEFAULT_MEMORY_CATEGORIES, ...memories.map((m) => m.category)]),
+  ];
+  const filteredMemories =
+    memoryCategoryFilter === "All"
+      ? memories
+      : memories.filter((m) => m.category === memoryCategoryFilter);
+
+  const allRelativeGroups = [
+    "All",
+    ...new Set(["Family", ...relatives.map((r) => r.group).filter(Boolean)]),
+  ];
+  const filteredRelatives =
+    relativeGroupFilter === "All"
+      ? relatives
+      : relatives.filter((r) => r.group === relativeGroupFilter);
+
+  const isPlaceDisabled =
+    !currentUrl ||
+    busyPlace ||
+    (kind === "gallery" && isCustomCategory && !customCategoryInput.trim()) ||
+    (kind === "memory" && memoryMode === "existing" && !targetMemoryId) ||
+    (kind === "memory" && memoryMode === "new" && !newMemoryTitle.trim() && !name.trim()) ||
+    (kind === "relative" && !targetRelativeId);
+
+  const actionButtonText = busyPlace
+    ? "Placing photo…"
+    : kind === "hero"
+      ? "Set as Front Page photo"
+      : kind === "gallery"
+        ? `Add to Gallery (${isCustomCategory ? customCategoryInput.trim() || "Custom" : selectedGalleryCategory})`
+        : kind === "memory"
+          ? memoryMode === "new"
+            ? "Create new memory chapter"
+            : "Update this memory's photo"
+          : "Place on relative's card";
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-soft sm:p-6">
@@ -242,7 +409,11 @@ function PhotoFlow({
           <Input
             id="photo-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (!galleryPhotoTitle) setGalleryPhotoTitle(e.target.value);
+              if (!newMemoryTitle) setNewMemoryTitle(e.target.value);
+            }}
             placeholder="e.g. Tamim at the beach"
             className="mt-1.5 h-11"
           />
@@ -267,7 +438,7 @@ function PhotoFlow({
       {currentUrl && (
         <p className="mt-4 flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
           <Check className="size-4 shrink-0" />
-          Got it — your new photo is in the album. Now choose where it should show.
+          Got it — your new photo is ready in the album. Now choose where it should show below.
         </p>
       )}
 
@@ -276,21 +447,25 @@ function PhotoFlow({
         <div>
           <h2 className="font-display text-xl leading-tight">Where should it show?</h2>
           <p className="text-xs text-muted-foreground">
-            You can change it as many times as you like.
+            Select the destination and category. You can change it anytime.
           </p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      {/* Destination Grid: 4 Places */}
+      <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {places.map(({ kind: k, title, copy, icon: Icon }) => (
           <button
             key={k}
             type="button"
-            onClick={() => setKind(k)}
+            onClick={() => {
+              setKind(k);
+              setPlaced(null);
+            }}
             className={`flex items-start gap-3 rounded-lg border p-3.5 text-left transition active:scale-[.99] ${
               kind === k
-                ? "border-primary bg-secondary ring-1 ring-primary"
-                : "border-border bg-background/50"
+                ? "border-primary bg-secondary ring-1 ring-primary shadow-sm"
+                : "border-border bg-background/50 hover:bg-secondary/40"
             }`}
           >
             <span
@@ -300,75 +475,340 @@ function PhotoFlow({
             >
               <Icon className="size-4" />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <b className="block text-sm">{title}</b>
               <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{copy}</span>
             </span>
-            {kind === k && <Check className="ml-auto mt-1 size-4 shrink-0 text-primary" />}
+            {kind === k && <Check className="mt-1 size-4 shrink-0 text-primary" />}
           </button>
         ))}
       </div>
 
-      <div className="mt-4 rounded-lg bg-secondary/60 p-4">
-        <div className="flex flex-wrap items-end gap-3">
+      {/* Destination Context & Category Controls */}
+      <div className="mt-4 rounded-lg bg-secondary/60 p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           {currentUrl ? (
-            <img
-              src={currentUrl}
-              alt=""
-              width={96}
-              height={96}
-              className="size-16 rounded-md border border-border object-cover"
-            />
+            <div className="relative size-20 shrink-0 overflow-hidden rounded-md border border-border shadow-sm">
+              <img src={currentUrl} alt="" className="size-full object-cover" />
+            </div>
           ) : (
-            <span className="flex size-16 items-center justify-center rounded-md border border-dashed border-border bg-card text-[0.65rem] text-muted-foreground">
+            <div className="flex size-20 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-card text-[0.68rem] text-muted-foreground">
               no photo yet
-            </span>
+            </div>
           )}
-          <div className="min-w-0 flex-1">
-            {kind === "memory" || kind === "relative" ? (
-              <>
-                <label className="text-xs font-semibold" htmlFor="place-item">
-                  {itemsLabel}
-                </label>
-                <select
-                  id="place-item"
-                  value={targetId}
-                  onChange={(e) => setTargetId(e.target.value)}
-                  className={`mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm ${targetId ? "text-foreground" : "text-muted-foreground"}`}
-                >
-                  <option value="">Choose one…</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id} className="text-foreground">
-                      {"title" in item ? item.title : item.name}
-                    </option>
+
+          <div className="min-w-0 flex-1 space-y-4">
+            {/* FRONT PAGE (HERO) */}
+            {kind === "hero" && (
+              <div className="rounded-md border border-border/60 bg-background/80 p-3.5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Home className="size-4 text-primary" />
+                  Front page cover photo
+                </div>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  The front page uses one photo at a time. Placing this photo will immediately
+                  update Tamim's welcome header for everyone visiting the site.
+                </p>
+              </div>
+            )}
+
+            {/* GALLERY DESTINATION */}
+            {kind === "gallery" && (
+              <div className="space-y-3.5">
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Tag className="size-3.5 text-primary" />
+                      Choose a gallery category:
+                    </label>
+                    <span className="text-[0.7rem] text-muted-foreground">
+                      Organized albums for Tamim's cinema
+                    </span>
+                  </div>
+
+                  {/* Category Chips */}
+                  <div className="no-scrollbar mt-2 flex flex-wrap gap-1.5">
+                    {galleryCategories.map((cat) => {
+                      const isSelected = !isCustomCategory && selectedGalleryCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setSelectedGalleryCategory(cat);
+                            setIsCustomCategory(false);
+                          }}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "border border-border bg-background text-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomCategory(true)}
+                      className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${
+                        isCustomCategory
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "border border-dashed border-primary/60 bg-background text-primary hover:bg-primary/10"
+                      }`}
+                    >
+                      <Plus className="size-3" />
+                      + Custom category
+                    </button>
+                  </div>
+
+                  {isCustomCategory && (
+                    <div className="mt-2.5">
+                      <Input
+                        value={customCategoryInput}
+                        onChange={(e) => setCustomCategoryInput(e.target.value)}
+                        placeholder="Type new category name (e.g. 12 - أول يوم حضانة)"
+                        className="h-10 text-sm"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-semibold" htmlFor="gallery-caption">
+                      Photo title / caption{" "}
+                      <span className="font-normal text-muted-foreground">(optional)</span>
+                    </label>
+                    <Input
+                      id="gallery-caption"
+                      value={galleryPhotoTitle}
+                      onChange={(e) => setGalleryPhotoTitle(e.target.value)}
+                      placeholder="e.g. تميم بيضحك مع بابا"
+                      className="mt-1 h-10 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold" htmlFor="gallery-date">
+                      Date{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (optional, e.g. 2024-05-10)
+                      </span>
+                    </label>
+                    <Input
+                      id="gallery-date"
+                      value={galleryDate}
+                      onChange={(e) => setGalleryDate(e.target.value)}
+                      placeholder="YYYY-MM-DD or readable date"
+                      className="mt-1 h-10 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MEMORY DESTINATION */}
+            {kind === "memory" && (
+              <div className="space-y-3.5">
+                <div className="flex gap-2 border-b border-border/60 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setMemoryMode("existing")}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                      memoryMode === "existing"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Update existing memory photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemoryMode("new")}
+                    className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                      memoryMode === "new"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Plus className="size-3" />
+                    Create new memory chapter
+                  </button>
+                </div>
+
+                {memoryMode === "existing" ? (
+                  <div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Filter by category:
+                      </span>
+                      {allMemoryCategories.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setMemoryCategoryFilter(c)}
+                          className={`rounded-full px-2.5 py-0.5 text-[0.72rem] font-medium transition ${
+                            memoryCategoryFilter === c
+                              ? "bg-primary text-primary-foreground"
+                              : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-2.5">
+                      <label className="text-xs font-semibold" htmlFor="place-memory-select">
+                        Which memory?
+                      </label>
+                      <select
+                        id="place-memory-select"
+                        value={targetMemoryId}
+                        onChange={(e) => setTargetMemoryId(e.target.value)}
+                        className={`mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm ${
+                          targetMemoryId ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        <option value="">Choose a memory…</option>
+                        {filteredMemories.map((item) => (
+                          <option key={item.id} value={item.id} className="text-foreground">
+                            {item.title} ({item.category}
+                            {item.date ? ` · ${item.date}` : ""})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs font-semibold" htmlFor="new-mem-title">
+                          Memory Title *
+                        </label>
+                        <Input
+                          id="new-mem-title"
+                          value={newMemoryTitle}
+                          onChange={(e) => setNewMemoryTitle(e.target.value)}
+                          placeholder="e.g. First time crawling"
+                          className="mt-1 h-10 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold" htmlFor="new-mem-date">
+                          Date
+                        </label>
+                        <Input
+                          id="new-mem-date"
+                          value={newMemoryDate}
+                          onChange={(e) => setNewMemoryDate(e.target.value)}
+                          placeholder="e.g. March 15, 2024"
+                          className="mt-1 h-10 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold">Memory Category</label>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {DEFAULT_MEMORY_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setNewMemoryCategory(cat)}
+                            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                              newMemoryCategory === cat
+                                ? "bg-primary text-primary-foreground"
+                                : "border border-border bg-background text-foreground"
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold" htmlFor="new-mem-story">
+                        Story or little note{" "}
+                        <span className="font-normal text-muted-foreground">(optional)</span>
+                      </label>
+                      <Textarea
+                        id="new-mem-story"
+                        value={newMemoryStory}
+                        onChange={(e) => setNewMemoryStory(e.target.value)}
+                        placeholder="What made this moment special? You can write in Arabic or English."
+                        className="mt-1 min-h-20 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* RELATIVE DESTINATION */}
+            {kind === "relative" && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-semibold text-muted-foreground">Filter group:</span>
+                  {allRelativeGroups.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setRelativeGroupFilter(g)}
+                      className={`rounded-full px-2.5 py-0.5 text-[0.72rem] font-medium transition ${
+                        relativeGroupFilter === g
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-background text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {g}
+                    </button>
                   ))}
-                </select>
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                The front page uses one photo at a time — your new one will simply replace it.
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold" htmlFor="place-relative-select">
+                    Which relative?
+                  </label>
+                  <select
+                    id="place-relative-select"
+                    value={targetRelativeId}
+                    onChange={(e) => setTargetRelativeId(e.target.value)}
+                    className={`mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-sm ${
+                      targetRelativeId ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    <option value="">Choose a family member…</option>
+                    {filteredRelatives.map((item) => (
+                      <option key={item.id} value={item.id} className="text-foreground">
+                        {item.name} ({item.relationship || item.group})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
         </div>
+
         <Button
           type="button"
           onClick={place}
-          disabled={
-            !currentUrl || busyPlace || ((kind === "memory" || kind === "relative") && !targetId)
-          }
-          className="mt-4 h-12 w-full"
+          disabled={isPlaceDisabled}
+          className="mt-4 h-12 w-full font-medium"
         >
-          {busyPlace
-            ? "Placing…"
-            : `Place this photo on the ${kind === "hero" ? "front page" : kind === "memory" ? "memory" : "relative's card"}`}
+          {actionButtonText}
         </Button>
+
         {placed && (
           <p
-            className={`mt-3 flex items-center gap-2 text-sm font-medium ${
+            className={`mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
               placed.startsWith("Couldn")
-                ? "text-destructive"
-                : "text-emerald-700 dark:text-emerald-300"
+                ? "bg-destructive/10 text-destructive"
+                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
             }`}
           >
             <Check className="size-4 shrink-0" />
@@ -750,6 +1190,7 @@ function ManagePage() {
         <PhotoFlow
           memories={data.memories}
           relatives={data.relatives}
+          galleryCategories={data.galleryCategories}
           currentUrl={currentUrl}
           onPhotoReady={setCurrentUrl}
         />

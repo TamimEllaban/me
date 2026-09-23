@@ -6,9 +6,12 @@ import { useSession } from "@tanstack/react-start/server";
 import { redirect } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
+  addGalleryItem,
   addLetter as dbAddLetter,
+  addMemory as dbAddMemory,
   addRelative as dbAddRelative,
   deleteRelative as dbDeleteRelative,
+  loadGalleryItems,
   updateChild as dbUpdateChild,
   updateMemory,
   updateMemoryImage,
@@ -129,9 +132,23 @@ export type GalleryCategory = { name: string; items: GalleryItem[] };
 export const getGalleryData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
   const raw = (mediaCatalog as { items: GalleryItem[] }).items;
-  const items: GalleryItem[] = raw.map((item) => ({
+  const dbItems = await loadGalleryItems();
+  const allRaw: GalleryItem[] = [
+    ...dbItems.map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      sourceName: d.sourceName,
+      category: d.category,
+      date: d.date,
+      url: d.url,
+      thumb: d.kind === "video" ? videoThumbUrl(d.url) : optimizeUrl(d.url, 640),
+    })),
+    ...raw,
+  ];
+  const items: GalleryItem[] = allRaw.map((item) => ({
     ...item,
-    thumb: item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640),
+    thumb:
+      item.thumb || (item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640)),
   }));
   items.sort(
     (a, b) =>
@@ -189,18 +206,53 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
       kind,
       id,
       url,
+      name,
+      category,
+      date,
+      story,
+      excerpt,
     }: {
-      kind: "hero" | "memory" | "relative";
+      kind: "hero" | "memory" | "relative" | "gallery";
       id?: string | undefined;
       url: string;
-    }) => ({ kind, id, url }),
+      name?: string | undefined;
+      category?: string | undefined;
+      date?: string | undefined;
+      story?: string | undefined;
+      excerpt?: string | undefined;
+    }) => ({ kind, id, url, name, category, date, story, excerpt }),
   )
   .handler(async ({ data }) => {
     await requireUnlocked();
     let ok = false;
-    if (data.kind === "hero") ok = await dbUpdateChild({ hero_image: data.url });
-    else if (data.kind === "memory" && data.id) ok = await updateMemoryImage(data.id, data.url);
-    else if (data.kind === "relative" && data.id) ok = await updateRelativeImage(data.id, data.url);
+    if (data.kind === "hero") {
+      ok = await dbUpdateChild({ hero_image: data.url });
+    } else if (data.kind === "gallery") {
+      const res = await addGalleryItem({
+        sourceName: data.name || "Family photo",
+        category: data.category || "03 - تميم وهو صغير",
+        date: data.date || "",
+        url: data.url,
+        kind: "image",
+      });
+      ok = res.ok;
+    } else if (data.kind === "memory") {
+      if (data.id === "new" || !data.id) {
+        const res = await dbAddMemory({
+          title: data.name || "New Memory",
+          date: data.date || new Date().toISOString().slice(0, 10),
+          category: data.category || "Milestones",
+          image: data.url,
+          excerpt: data.excerpt || "",
+          story: data.story || "",
+        });
+        ok = res.ok;
+      } else {
+        ok = await updateMemoryImage(data.id, data.url);
+      }
+    } else if (data.kind === "relative" && data.id) {
+      ok = await updateRelativeImage(data.id, data.url);
+    }
     return { ok };
   });
 

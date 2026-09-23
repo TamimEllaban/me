@@ -90,12 +90,21 @@ export type LetterRow = {
   message: string;
 };
 export type ProfileRow = { id: string; name: string; initials: string };
+export type GalleryItemRow = {
+  id: string;
+  kind: "image" | "video";
+  sourceName: string;
+  category: string;
+  date: string;
+  url: string;
+};
 
 const CHILD_SQL = `SELECT name, birthdate::text AS birthdate, welcome, hero_image FROM child WHERE id = 1 LIMIT 1`;
 const MEMORIES_SQL = `SELECT id, title, date, category, image, excerpt, story, sort_order FROM memories ORDER BY sort_order ASC`;
 const RELATIVES_SQL = `SELECT id, name, relationship, "group", image, fact, bio, sort_order, parent_id AS "parentId", spouse_id AS "spouseId" FROM relatives ORDER BY sort_order ASC`;
 const LETTERS_SQL = `SELECT id, title, author, date, message FROM letters ORDER BY created_at ASC, id ASC`;
 const PROFILES_SQL = `SELECT id, name, initials FROM profiles ORDER BY created_at ASC, id ASC`;
+const GALLERY_SQL = `SELECT id, kind, source_name AS "sourceName", category, date, url FROM gallery_items ORDER BY created_at DESC, id DESC`;
 
 export const loadChild = () =>
   withCache<ChildRow | null>("child", async () => {
@@ -117,6 +126,12 @@ export const loadLetters = () =>
 
 export const loadProfiles = () =>
   withCache<ProfileRow[]>("profiles", async () => (await query<ProfileRow>(PROFILES_SQL)) ?? []);
+
+export const loadGalleryItems = () =>
+  withCache<GalleryItemRow[]>(
+    "gallery_items",
+    async () => (await query<GalleryItemRow>(GALLERY_SQL)) ?? [],
+  );
 
 export async function updateChild(patch: {
   name?: string | undefined;
@@ -271,6 +286,75 @@ export async function addLetter(input: {
   } catch (error) {
     console.error("[db] addLetter failed:", error);
     return false;
+  }
+}
+
+export async function addGalleryItem(input: {
+  sourceName: string;
+  category: string;
+  url: string;
+  date?: string;
+  kind?: "image" | "video";
+}): Promise<{ ok: boolean; id?: string }> {
+  const client = getPool();
+  if (!client) return { ok: false };
+  try {
+    const id = `g-${sqlUuid()}`;
+    await client.query(
+      `INSERT INTO gallery_items (id, kind, source_name, category, date, url, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now())`,
+      [
+        id,
+        input.kind || "image",
+        input.sourceName.trim().slice(0, 160) || "Family photo",
+        input.category.trim().slice(0, 120) || "General",
+        input.date?.trim() || "",
+        input.url,
+      ],
+    );
+    invalidate(["gallery_items"]);
+    return { ok: true, id };
+  } catch (error) {
+    console.error("[db] addGalleryItem failed:", error);
+    return { ok: false };
+  }
+}
+
+export async function addMemory(input: {
+  title: string;
+  date: string;
+  category: string;
+  image: string;
+  excerpt?: string;
+  story?: string;
+}): Promise<{ ok: boolean; id?: string }> {
+  const client = getPool();
+  if (!client) return { ok: false };
+  try {
+    const nextOrder = await query<{ next: number }>(
+      `SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM memories`,
+    );
+    const sortOrder = nextOrder && nextOrder.length ? nextOrder[0]!.next : 1;
+    const id = `mem-${sqlUuid()}`;
+    await client.query(
+      `INSERT INTO memories (id, title, date, category, image, excerpt, story, sort_order, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())`,
+      [
+        id,
+        input.title.trim().slice(0, 160),
+        input.date.trim() || new Date().toISOString().slice(0, 10),
+        input.category.trim() || "Milestones",
+        input.image,
+        input.excerpt?.trim() || "",
+        input.story?.trim() || "",
+        sortOrder,
+      ],
+    );
+    invalidate(["memories"]);
+    return { ok: true, id };
+  } catch (error) {
+    console.error("[db] addMemory failed:", error);
+    return { ok: false };
   }
 }
 
