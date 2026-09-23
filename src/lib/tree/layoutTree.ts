@@ -436,6 +436,37 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       cl.kids.reduce((s, k) => s + width(k), 0),
     );
 
+  // ---- children of the great aunts & uncles: one fan per great root ----
+  // Descendant trees are built here (not at placement time) so maxDepth picks
+  // up their grandchildren and reserves the cousin lanes they need.
+  type GkFanEntry = { p: FamilyDescendant; sp?: FamilyPerson; kids: Desc[]; w: number };
+  type GkFan = { side: Side; rootId: string; entries: GkFanEntry[] };
+  const gkFans: GkFan[] = [];
+  const seenFan = new Set<string>();
+  for (const b of data.branches) {
+    for (const fam of b.greatFamilies ?? []) {
+      if (seenFan.has(fam.person.id)) continue;
+      seenFan.add(fam.person.id);
+      gkFans.push({
+        side: greatSide(fam.person.relative.relationship),
+        rootId: fam.person.id,
+        entries: fam.children.map((c) => {
+          const kids = c.children.map((k) => toDesc(k, 0));
+          const entry: GkFanEntry = {
+            p: c,
+            kids,
+            w: Math.max(
+              c.spouse ? 2 : 1,
+              kids.reduce((s, k) => s + width(k), 0),
+            ),
+          };
+          if (c.spouse) entry.sp = c.spouse;
+          return entry;
+        }),
+      });
+    }
+  }
+
   // ---- great aunts & uncles: one node per person, canonical side ----
   const greats: { person: FamilyPerson; side: Side }[] = [];
   const seenGreat = new Set<string>();
@@ -471,7 +502,11 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
 
   const laneOrder: { id: string; size: number }[] = [];
   for (let d = maxDepth.v; d >= 0; d--) laneOrder.push({ id: `c${d}`, size: cousinSize(d) });
-  laneOrder.push({ id: "gen2", size: SIZES.parent }, { id: "greats", size: SIZES.root });
+  laneOrder.push(
+    { id: "gen2", size: SIZES.parent },
+    { id: "gk", size: cousinSize(0) },
+    { id: "greats", size: SIZES.root },
+  );
 
   const yLane: Record<string, number> = {};
   let accY = SCENE.crown.y;
@@ -482,6 +517,7 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     prevHalfB = halfB(lane.size);
   }
   const yGen2 = yLane["gen2"]!;
+  const yGk = yLane["gk"]!;
   const yGreatBot = yLane["greats"]!;
   const yGp =
     yGreatBot -
@@ -576,6 +612,66 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       }
       i += k;
       row++;
+    }
+  }
+
+  // great aunts' & uncles' own children hang in the "gk" lane, their kids
+  // cascade down into the cousin lanes. Because all great-kin share one lane
+  // while their parents sit on several root rows, fans are block-packed per
+  // side (owning their full subtree width) instead of centering on the great's
+  // column — that keeps every slot on the 140px grid, touch-free.
+  type GkRow = {
+    side: Side;
+    rootId: string;
+    p: FamilyPerson;
+    sp?: FamilyPerson;
+    col: number;
+    spCol: number;
+    kids: Desc[];
+  };
+  const gkRows: GkRow[] = [];
+  let fanCursorR = 1.5;
+  let fanCursorL = -1.5;
+  for (const fan of gkFans) {
+    const fw = fan.entries.reduce((s, e) => s + e.w, 0);
+    if (fw <= 0) continue;
+    const leftCol = fan.side === "dad" ? fanCursorR : fanCursorL - fw;
+    if (fan.side === "dad") fanCursorR += fw;
+    else fanCursorL -= fw;
+    const px = fan.side === "dad" ? 1 : -1;
+    let c = leftCol;
+    for (const e of fan.entries) {
+      const cc = c + e.w / 2;
+      if (e.sp) {
+        const personCol = cc + px * 0.5;
+        const spCol = cc - px * 0.5;
+        cols[e.p.id] = personCol;
+        cols[e.sp.id] = spCol;
+        track(personCol);
+        track(spCol);
+        gkRows.push({
+          side: fan.side,
+          rootId: fan.rootId,
+          p: e.p,
+          sp: e.sp,
+          col: personCol,
+          spCol,
+          kids: e.kids,
+        });
+      } else {
+        cols[e.p.id] = cc;
+        track(cc);
+        gkRows.push({
+          side: fan.side,
+          rootId: fan.rootId,
+          p: e.p,
+          col: cc,
+          spCol: cc,
+          kids: e.kids,
+        });
+      }
+      placeDesc(cc, e.kids);
+      c += e.w;
     }
   }
 
@@ -810,6 +906,68 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       trunkSm[r.side]!,
       idxAt(r.side, r.y),
     );
+  }
+
+  // great aunts'/uncles' children on the "gk" lane, plus their own kids
+  // cascading down the cousin lanes; every one hangs a twig from its branch
+  // and a light-path back to the trunk.
+  for (const gg of gkRows) {
+    const rootChain = chains[gg.rootId] ?? [];
+    const pos: Vec = { x: xOf(gg.col, cx), y: yGk };
+    const chain: Chain = [pos, ...rootChain];
+    chains[gg.p.id] = chain;
+    const n = makeNode(gg.p, pos.x, pos.y, "cousin", gg.side);
+    n.size = cousinSize(0);
+    n.photoUrl = photos[gg.p.id] ?? null;
+    n.role = friendlyRole(gg.p.relative);
+    add(n);
+    const rootPos: Vec = { x: byId[gg.rootId]!.x, y: byId[gg.rootId]!.y };
+    branches.push({
+      d: taperedPath(rootPos, pos, 12, 5, { x: 0, y: 2 }, seededRandom(`gk-${gg.side}-${gg.p.id}`)),
+      fill: "twig",
+      side: gg.side,
+    });
+    if (gg.sp) {
+      const spos: Vec = { x: xOf(gg.spCol, cx), y: yGk };
+      const sn = makeNode(gg.sp, spos.x, spos.y, "cousin", gg.side);
+      sn.size = cousinSize(0);
+      sn.photoUrl = photos[gg.sp.id] ?? null;
+      sn.role = friendlyRole(gg.sp.relative);
+      add(sn);
+      couples.push({
+        ids: [gg.p.id, gg.sp.id],
+        x: (pos.x + spos.x) / 2,
+        y: yGk,
+        side: gg.side,
+        size: cousinSize(0),
+      });
+    }
+    const walkGkKids = (kids: Desc[], depth: number, anch: Chain) => {
+      for (const k of kids) {
+        const kpos: Vec = { x: cx + cols[k.person.id]! * SLOT, y: yCousin(depth) };
+        const kchain: Chain = [kpos, ...anch];
+        chains[k.person.id] = kchain;
+        const kn = makeNode(k.person, kpos.x, kpos.y, "cousin", gg.side);
+        kn.size = cousinSize(depth);
+        kn.photoUrl = photos[k.person.id] ?? null;
+        kn.role = friendlyRole(k.person.relative);
+        add(kn);
+        branches.push({
+          d: taperedPath(
+            anch[0]!,
+            kpos,
+            8,
+            4,
+            { x: 0, y: 0 },
+            seededRandom(`gk-${gg.side}-${k.person.id}`),
+          ),
+          fill: "twig",
+          side: gg.side,
+        });
+        walkGkKids(k.kids, depth + 1, kchain);
+      }
+    };
+    walkGkKids(gg.kids, 0, chain);
   }
 
   for (const cl of clauses) {

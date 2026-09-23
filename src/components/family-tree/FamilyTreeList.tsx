@@ -163,6 +163,35 @@ export function FamilyTreeList({
             </>
           )}
 
+          {branch.greatFamilies && branch.greatFamilies.length > 0 && (
+            <>
+              <h4 className="mt-4 text-center text-sm font-semibold text-muted-foreground">
+                أولاد الجذور (أبناء أخوات الجدود)
+              </h4>
+              <ul className="mt-2 space-y-4">
+                {branch.greatFamilies
+                  .filter(
+                    (g) =>
+                      (g.person.relative.relationship.includes("ماما") ? "mom" : "dad") ===
+                      branch.side,
+                  )
+                  .map((g) => (
+                    <li
+                      key={g.person.id}
+                      className="rounded-xl border border-border/70 bg-background/60 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {g.person.role} {g.person.name}
+                        </span>
+                      </div>
+                      <DescendantChips kids={g.children} onOpen={setOpenId} />
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )}
+
           <h4 className="mt-4 text-center text-sm font-semibold text-muted-foreground">الأبناء</h4>
           <ul className="mt-2 space-y-4">
             {branch.children.map((child) => {

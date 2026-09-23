@@ -387,16 +387,59 @@ test("production dataset: every relative gets one node, zero bbox overlaps at an
   const layout = layoutTree(data, DEPS);
   assert.equal(
     layout.nodes.length,
-    32,
-    "one node per production relative (duplicate greats deduped)",
+    70,
+    "one node per production relative (69) plus Tamim, duplicate greats deduped",
   );
   assert.equal(Object.keys(layout.byId).length, layout.nodes.length, "ids stay unique");
-  assert.equal(countOverlaps(layout.nodes), 0, "no bbox overlaps in the real 31-relative dataset");
+  assert.equal(countOverlaps(layout.nodes), 0, "no bbox overlaps in the real 69-relative dataset");
 
   for (const n of layout.nodes) {
     assert.ok(n.x >= 70 && n.x <= layout.W - 70, `${n.id} x in bounds`);
     assert.ok(n.y >= 90 && n.y <= layout.H - 64, `${n.id} y in bounds`);
   }
+});
+
+test("production dataset: children of the great aunts/uncles hang under their roots", () => {
+  const data = buildFamilyData(PRODUCTION_RELATIVES);
+  const layout = layoutTree(data, DEPS);
+  // every cousin of the parents' generation (children of the greats) is placed
+  for (const id of [
+    "saad-sherif",
+    "saad-tamer",
+    "saeed-aya",
+    "hassan-bilal",
+    "ali-karim",
+    "hamdy-eman",
+    "gamal-fatma",
+    "hoda-enas",
+    "nora-ahmed",
+    "mohamed-ahmed-m",
+    "hoda-hager",
+    "maha-ahmed",
+    "wafa-rawan",
+    "wafa-abdelatif",
+    "mama-hassan-rim",
+    "mama-mohamed-karim",
+  ]) {
+    assert.ok(layout.byId[id], `great-kin ${id} has a node`);
+    assert.ok(
+      Array.isArray(layout.chains[id]) && layout.chains[id]!.length > 0,
+      `${id} has a light path`,
+    );
+  }
+  // the one couple among the great-kin renders with a heart
+  const rawSieh = layout.byId["wafa-rawan"]!;
+  const ibrahim = layout.byId["ibrahim-rawan"]!;
+  assert.ok(rawSieh && ibrahim, "روان and ابراهيم both placed");
+  assert.ok(
+    layout.couples.some((c) => c.ids[0] === "wafa-rawan" && c.ids[1] === "ibrahim-rawan"),
+    "great-kin couple gets a heart",
+  );
+  // deep grandchild of a great lands in the cousin lanes
+  assert.ok(layout.byId["rawan-dana"], "دانه (benet وفاء) is placed");
+  // great-kin wait between the roots and the parents row: below their root's row
+  const root = layout.byId["khala-wafa"]!;
+  assert.ok(rawSieh.y > root.y, "روان hangs below her mother وفاء");
 });
 
 test("production dataset: roots live in a dedicated lane above the parents/uncles row", () => {

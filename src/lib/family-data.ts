@@ -17,7 +17,10 @@ export type FamilyPerson = {
 };
 
 /** A descendant (cousin) that may itself have children and grandchildren. */
-export type FamilyDescendant = FamilyPerson & { children: FamilyDescendant[] };
+export type FamilyDescendant = FamilyPerson & {
+  children: FamilyDescendant[];
+  spouse?: FamilyPerson;
+};
 
 export type FamilyCouple = {
   person: FamilyPerson;
@@ -37,7 +40,15 @@ export type FamilyBranch = {
   grandparents: FamilyCouple;
   grandfatherSiblings: FamilyPerson[];
   grandmotherSiblings: FamilyPerson[];
+  greatFamilies?: GreatFamily[];
   children: BranchChild[];
+};
+
+/** A great aunt/uncle (sibling of a grandparent) plus their own descendants. */
+export type GreatFamily = {
+  person: FamilyPerson;
+  spouse?: FamilyPerson;
+  children: FamilyDescendant[];
 };
 
 export type FamilyData = {
@@ -72,6 +83,21 @@ const FRIENDLY_ROLES: Record<string, string> = {
   "خالة بابا": "خالتو",
   "خال جدو": "خال جدو",
   "عمة بابا": "عمة",
+  "ابن خالة بابا": "ابن خالتو",
+  "بنت خالة بابا": "بنت خالتو",
+  "ابن خال بابا": "ابن خالو",
+  "بنت خال بابا": "بنت خالو",
+  "ابن عمة بابا": "ابن عمة",
+  "بنت عمة بابا": "بنت عمة",
+  "ابن عم بابا": "ابن عمو",
+  "بنت عم بابا": "بنت عمو",
+  "ابن خالة ماما": "ابن خالتو",
+  "بنت خالة ماما": "بنت خالتو",
+  "ابن عم ماما": "ابن عمو",
+  "بنت عم ماما": "بنت عمو",
+  "زوج بنت خالة ماما": "عمو",
+  "بنت بنت الخالة": "بنت بنت خالتو",
+  "ابن بنت الخالة": "ابن بنت خالتو",
 };
 
 export function friendlyRole(relative: RelativeLike): string {
@@ -133,6 +159,22 @@ function buildDescendants(
   }));
 }
 
+/**
+ * Attach a spouse reference to every descendant of a great aunt/uncle so the
+ * tree layout can draw a couple there too (e.g. روان and ابراهيم).
+ */
+function attachSpouses(relatives: RelativeLike[], kids: FamilyDescendant[]): FamilyDescendant[] {
+  const find = byId(relatives);
+  return kids.map((k) => {
+    const sp = safeSpouse(k.relative, find(k.relative.spouseId));
+    return {
+      ...k,
+      children: attachSpouses(relatives, k.children),
+      ...(sp ? { spouse: { id: sp.id, name: sp.name, role: friendlyRole(sp), relative: sp } } : {}),
+    };
+  });
+}
+
 function buildBranch(
   relatives: RelativeLike[],
   side: "dad" | "mom",
@@ -176,6 +218,21 @@ function buildBranch(
       : `عيلة ${friendlyRole(parent)} ${parent.name}`;
   const subtitle = grandma ? `فرع ${grand?.name} و${grandma.name}` : `فرع ${grand?.name ?? ""}`;
 
+  // each great aunt/uncle carries its own children + grandchildren, so their
+  // branch hangs under its root on the tree
+  const greatFamilies: GreatFamily[] = [];
+  for (const g of greats) {
+    const gRow = find(g.id);
+    if (!gRow) continue;
+    const couple = buildCouple(relatives, gRow);
+    const begin: GreatFamily = {
+      person: couple.person,
+      children: attachSpouses(relatives, buildDescendants(relatives, new Set([gRow.id]), 2)),
+    };
+    if (couple.spouse) begin.spouse = couple.spouse;
+    greatFamilies.push(begin);
+  }
+
   return {
     side,
     title,
@@ -183,6 +240,7 @@ function buildBranch(
     grandparents: grand ? buildCouple(relatives, grand) : buildCouple(relatives, parent),
     grandfatherSiblings: [...grandSibs.map(makePerson), ...unplaced.map(makePerson)],
     grandmotherSiblings: grandmaSibs.map(makePerson),
+    greatFamilies,
     children,
   };
 }
