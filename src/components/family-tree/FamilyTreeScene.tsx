@@ -26,7 +26,7 @@ import { BranchFocusTabs, SceneToolbar } from "./BranchFocusTabs";
 import { PersonPopover } from "./PersonPopover";
 import { PersonDialog } from "./PersonDialog";
 
-const MIN_K = 0.5;
+const MIN_K = 0.18;
 const MAX_K = 3.2;
 
 type Camera = { k: number; tx: number; ty: number };
@@ -186,22 +186,8 @@ export function FamilyTreeScene({
 
   // ---------- init ----------
   useLayoutEffect(() => {
-    // frame Tamim + parents at the base on first load
-    const frameIds = layout.nodes.filter((n) => n.kind === "tamim" || n.kind === "parent");
-    if (frameIds.length > 0) {
-      let l = Infinity;
-      let t = Infinity;
-      let r = -Infinity;
-      let b = -Infinity;
-      for (const n of frameIds) {
-        const q = nodeBounds(n);
-        l = Math.min(l, q.left);
-        t = Math.min(t, q.top);
-        r = Math.max(r, q.right);
-        b = Math.max(b, q.bottom);
-      }
-      fitBox({ cx: (l + r) / 2, cy: (t + b) / 2, w: r - l + 140, h: b - t + 140 }, false);
-    }
+    // open on the view that shows the whole tree
+    fitTo("all", false);
     applyWorld();
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
@@ -212,6 +198,7 @@ export function FamilyTreeScene({
       window.clearTimeout(t);
       rm.removeEventListener?.("change", onChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---------- auto degrade ----------
