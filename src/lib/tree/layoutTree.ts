@@ -7,17 +7,17 @@
  *   - Cousins (children of the
  *     aunts & uncles)          -> the "children" lane just above the base
  *   - Parents + aunts & uncles -> the generation lane above the cousins
- *   - Great aunts & uncles     -> the roots rows (separate lane)
+ *   - Great aunts & uncles     -> per-family columns above the uncles
  *   - Grandparents             -> the carved plaque lane at the top
  *
  * Placement is a deterministic two-pass generation-lane layout:
  *
- *   1. Every person owns one "slot" on a 140px grid (avatar + 120px name tag
- *      + a guaranteed MIN_GAP of 20px), so ornaments can never touch.
+ *   1. Every person owns one "slot" on a 146px grid (avatar + 120px name tag
+ *      + a guaranteed MIN_GAP of 22px), so ornaments can never touch.
  *      A couple spans two consecutive slots; siblings share one horizontal
  *      lane and the lane widens as siblings are added (Reingold–Tilford
  *      style subtree widths keep children centered under their parents).
- *   2. Generations stack bottom-up with MIN_GAP between lanes, and the whole
+ *   2. Generations stack bottom-up with wide air between lanes, and the whole
  *      composition is shifted so Tamim rests at the crown.
  *
  * All connectors, hearts and twigs are regenerated AFTER the final positions
@@ -120,16 +120,25 @@ export const SIZES: Record<NodeKind, number> = {
 export const TAG = { w: 120, h: 48 } as const;
 
 /** Minimum guaranteed clearance between any two ornaments. */
-export const MIN_GAP = 20;
+export const MIN_GAP = 22;
 
 /** Center-to-center pitch for people sharing a lane (slot width). */
-const SLOT = 140;
+const SLOT = 146;
 
-/** Vertical pitch between the great aunts/uncles rows. */
-const ROW_PITCH = 110;
+/** Vertical air between the close family lanes (cousins and the uncles lane). */
+const CLOSE_AIR = 46;
 
-/** Max great-aunts/uncles per roots row, per side. */
-const PER_ROW = 4;
+/** Clearance between the deepest great-kin column bottom and the uncles lane. */
+const COL_BASE = 130;
+
+/** Vertical pitch inside a great column: root -> children -> grandchildren. */
+const LEVEL_PITCH = 210;
+
+/** Minimum vertical clearance between the two greats root rows. */
+const ROOT_PITCH_MIN = 330;
+
+/** Air between the highest greats row and the grandparents plaques. */
+const GP_AIR = 150;
 
 /** Slot distance of each grandparents' plaque from the centre line. */
 const GP_POCKET = 3;
@@ -145,10 +154,10 @@ const EDGE_PAD = 130;
 
 export const SCENE = {
   W: 1600,
-  H: 1650,
-  groundY: 1500,
-  crown: { x: 800, y: 1486 },
-  meet: { x: 800, y: 1400 },
+  H: 1950,
+  groundY: 1800,
+  crown: { x: 800, y: 1786 },
+  meet: { x: 800, y: 1700 },
 } as const;
 
 export type NodeRect = {
@@ -365,7 +374,7 @@ function separateNodes(nodes: TreeNode[], pin?: (id: string) => boolean) {
 }
 
 /** Recursive cousin subtree used by the Reingold–Tilford width pass. */
-type Desc = { person: FamilyPerson; kids: Desc[]; w: number };
+type Desc = { person: FamilyPerson; kids: Desc[]; w: number; spouse?: FamilyPerson };
 
 /** One aunt/uncle clause: a couple plus their descendant subtree. */
 type Clause = {
@@ -397,14 +406,19 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
 
   // ---- turn the branch data into clauses + descendant trees ----
   const maxDepth = { v: 0 };
-  const toDesc = (c: FamilyDescendant, dep: number): Desc => {
-    maxDepth.v = Math.max(maxDepth.v, dep);
-    return { person: c, kids: c.children.map((k) => toDesc(k, dep + 1)), w: -1 };
+  const toDesc = (c: FamilyDescendant, dep: number, track = true): Desc => {
+    if (track) maxDepth.v = Math.max(maxDepth.v, dep);
+    return {
+      person: c,
+      ...(c.spouse ? { spouse: c.spouse } : {}),
+      kids: c.children.map((k) => toDesc(k, dep + 1, track)),
+      w: -1,
+    };
   };
   const width = (k: Desc): number => {
     if (k.w < 0)
       k.w = Math.max(
-        1,
+        k.spouse ? 2 : 1,
         k.kids.reduce((s, x) => s + width(x), 0),
       );
     return k.w;
@@ -431,36 +445,22 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       cl.kids.reduce((s, k) => s + width(k), 0),
     );
 
-  // ---- children of the great aunts & uncles: one fan per great root ----
-  // Descendant trees are built here (not at placement time) so maxDepth picks
-  // up their grandchildren and reserves the cousin lanes they need.
-  type GkFanEntry = { p: FamilyDescendant; sp?: FamilyPerson; kids: Desc[]; w: number };
-  type GkFan = { side: Side; rootId: string; entries: GkFanEntry[] };
-  const gkFans: GkFan[] = [];
-  const seenFan = new Set<string>();
+  // ---- children of the great aunts & uncles: one column per great root ----
+  // Descendant trees are cached now (not at placement) so their width and depth
+  // are known before columns are packed; they never touch the cousin lanes —
+  // every level hangs directly under its parent inside its own column.
+  const famByGreat = new Map<string, { sp?: FamilyPerson; kids: Desc[] }>();
   for (const b of data.branches) {
     for (const fam of b.greatFamilies ?? []) {
-      if (seenFan.has(fam.person.id)) continue;
-      seenFan.add(fam.person.id);
-      gkFans.push({
-        side: greatSide(fam.person.relative.relationship),
-        rootId: fam.person.id,
-        entries: fam.children.map((c) => {
-          const kids = c.children.map((k) => toDesc(k, 0));
-          const entry: GkFanEntry = {
-            p: c,
-            kids,
-            w: Math.max(
-              c.spouse ? 2 : 1,
-              kids.reduce((s, k) => s + width(k), 0),
-            ),
-          };
-          if (c.spouse) entry.sp = c.spouse;
-          return entry;
-        }),
+      if (famByGreat.has(fam.person.id)) continue;
+      famByGreat.set(fam.person.id, {
+        kids: fam.children.map((c) => toDesc(c, 0, false)),
+        ...(fam.spouse ? { sp: fam.spouse } : {}),
       });
     }
   }
+  const depthOf = (k: Desc): number =>
+    k.kids.length ? 1 + Math.max(0, ...k.kids.map(depthOf)) : 0;
 
   // ---- great aunts & uncles: one node per person, canonical side ----
   const greats: { person: FamilyPerson; side: Side }[] = [];
@@ -471,6 +471,16 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       seenGreat.add(g.id);
       greats.push({ person: g, side: greatSide(g.relative.relationship) });
     }
+  }
+
+  // which grandparent each great hangs from: siblings of the grandfather (أعمام)
+  // connect to the جد plaque, siblings of the grandmother (خلان) to the جدة
+  // plaque — so every branch keeps the دوائر two groups visually apart.
+  type GreatKind = "grandpa" | "grandma";
+  const greatKindOf: Record<string, GreatKind> = {};
+  for (const b of data.branches) {
+    for (const g of b.grandfatherSiblings) greatKindOf[g.id] = "grandpa";
+    for (const g of b.grandmotherSiblings) greatKindOf[g.id] = "grandma";
   }
 
   const gpBySide: { side: Side; person: FamilyPerson; spouse?: FamilyPerson }[] = [];
@@ -487,37 +497,19 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
   const halfA = (size: number) => size / 2;
   const halfB = (size: number) => size / 2 + TAG.h;
 
-  const sideCells: Record<Side, number> = { dad: 0, mom: 0 };
-  const byGreatSide: Record<Side, FamilyPerson[]> = { dad: [], mom: [] };
-  for (const g of greats) {
-    byGreatSide[g.side].push(g.person);
-    sideCells[g.side] = Math.ceil(byGreatSide[g.side].length / PER_ROW);
-  }
-  const maxRows = Math.max(1, sideCells.dad, sideCells.mom);
-
   const laneOrder: { id: string; size: number }[] = [];
   for (let d = maxDepth.v; d >= 0; d--) laneOrder.push({ id: `c${d}`, size: cousinSize(d) });
-  laneOrder.push(
-    { id: "gen2", size: SIZES.parent },
-    { id: "gk", size: cousinSize(0) },
-    { id: "greats", size: SIZES.root },
-  );
+  laneOrder.push({ id: "gen2", size: SIZES.parent });
 
   const yLane: Record<string, number> = {};
   let accY = SCENE.crown.y;
   let prevHalfB = halfB(SIZES.tamim);
   for (const lane of laneOrder) {
-    accY -= prevHalfB + halfA(lane.size) + MIN_GAP;
+    accY -= prevHalfB + halfA(lane.size) + CLOSE_AIR;
     yLane[lane.id] = accY;
     prevHalfB = halfB(lane.size);
   }
   const yGen2 = yLane["gen2"]!;
-  const yGk = yLane["gk"]!;
-  const yGreatBot = yLane["greats"]!;
-  const yGp =
-    yGreatBot -
-    (maxRows - 1) * ROW_PITCH -
-    (halfB(SIZES.root) + halfA(SIZES.grandparent) + MIN_GAP);
   const yCousin = (d: number) => yLane[`c${d}`]!;
 
   // ---- assign slot columns (relative to the center line) ----
@@ -560,19 +552,26 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     }
   }
 
-  const placeDesc = (parentCol: number, kids: Desc[]) => {
+  const placeDesc = (parentCol: number, kids: Desc[], px: 1 | -1) => {
     if (!kids.length) return;
     const total = kids.reduce((s, k) => s + width(k), 0);
-    let c = parentCol - total / 2;
+    let c = parentCol - (total - 1) / 2;
     for (const k of kids) {
       const cc = c + width(k) / 2;
-      cols[k.person.id] = cc;
-      track(cc);
-      placeDesc(cc, k.kids);
+      if (k.spouse) {
+        cols[k.person.id] = cc + px * 0.5;
+        cols[k.spouse.id] = cc - px * 0.5;
+        track(cols[k.person.id]!);
+        track(cols[k.spouse.id]!);
+      } else {
+        cols[k.person.id] = cc;
+        track(cc);
+      }
+      placeDesc(cc, k.kids, px);
       c += width(k);
     }
   };
-  for (const cl of clauses) placeDesc(cl.leftCol + cl.w / 2, cl.kids);
+  for (const cl of clauses) placeDesc(cl.leftCol + cl.w / 2, cl.kids, cl.side === "dad" ? 1 : -1);
 
   // grandparents plaques on their trunk pockets
   const gpCols: { side: Side; personCol: number; spouseCol: number }[] = [];
@@ -589,85 +588,171 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     }
   }
 
-  // great aunts & uncles fill rows of PER_ROW per side, bottom-up
-  const greatPlaces: { p: FamilyPerson; side: Side; col: number; y: number }[] = [];
-  for (const side of ["dad", "mom"] as const) {
-    const people = byGreatSide[side];
-    const pocket = side === "dad" ? GP_POCKET : -GP_POCKET;
-    let i = 0;
-    let row = 0;
-    while (i < people.length) {
-      const k = Math.min(PER_ROW, people.length - i);
-      const startCol = pocket - (k - 1) / 2;
-      for (let j = 0; j < k; j++) {
-        const col = startCol + j;
-        cols[people[i + j]!.id] = col;
-        track(col);
-        greatPlaces.push({ p: people[i + j]!, side, col, y: yGreatBot - row * ROW_PITCH });
+  // ---- great aunts & uncles: per-side family columns, packed in ≤2 rows ----
+  type GkCol = {
+    side: Side;
+    group: GreatKind;
+    root: FamilyPerson;
+    sp?: FamilyPerson;
+    kids: Desc[];
+    depth: number;
+    width: number;
+    row: number;
+    left: number;
+  };
+  const greatCols: GkCol[] = [];
+  for (const g of greats) {
+    const fam = famByGreat.get(g.person.id) ?? { kids: [] as Desc[] };
+    const depth = fam.kids.length ? 1 + Math.max(0, ...fam.kids.map((k) => depthOf(k))) : 0;
+    const own = fam.sp ? 2 : 1;
+    greatCols.push({
+      side: g.side,
+      group: greatKindOf[g.person.id] ?? "grandpa",
+      root: g.person,
+      ...(fam.sp ? { sp: fam.sp } : {}),
+      kids: fam.kids,
+      depth,
+      width: Math.max(
+        own,
+        fam.kids.reduce((s, k) => s + width(k), 0),
+      ),
+      row: 0,
+      left: 0,
+    });
+  }
+
+  // greedy first-fit packing into at most two rows per side (width-capped) —
+  // some roots climb to a second, higher row so the widest side stays readable
+  // while the whole composition grows taller.
+  const packRows = (cols: GkCol[]) => {
+    const sorted = [...cols].sort(
+      (a, b) => b.width - a.width || a.root.id.localeCompare(b.root.id),
+    );
+    for (let cap = 14; ; cap++) {
+      const rows: { sum: number; items: GkCol[] }[] = [];
+      let ok = true;
+      for (const c of sorted) {
+        const slot = rows.find((r) => r.sum + c.width <= cap);
+        if (slot) {
+          slot.sum += c.width;
+          slot.items.push(c);
+        } else if (rows.length < 2) {
+          rows.push({ sum: c.width, items: [c] });
+        } else {
+          ok = false;
+          break;
+        }
       }
-      i += k;
-      row++;
+      if (ok) return rows.map((r) => r.items);
+    }
+  };
+
+  // pack every grandparent's own siblings separately so each branch keeps the
+  // أعمام (the grandfather's side) and the خلان (the grandmother's side) as two
+  // distinct bands instead of one mixed mass. The خلان band sits directly above
+  // the parents lane; the أعمام band climbs higher, right under the plaques.
+  type BandRows = Record<GreatKind, GkCol[][]>;
+  const bands: Record<Side, BandRows> = {
+    dad: { grandpa: [], grandma: [] },
+    mom: { grandpa: [], grandma: [] },
+  };
+  for (const side of ["dad", "mom"] as const) {
+    bands[side].grandma = packRows(
+      greatCols.filter((c) => c.side === side && c.group === "grandma"),
+    );
+    bands[side].grandpa = packRows(
+      greatCols.filter((c) => c.side === side && c.group === "grandpa"),
+    );
+  }
+  for (const side of ["dad", "mom"] as const) {
+    bands[side].grandma.forEach((row, i) => row.forEach((c) => (c.row = i)));
+    bands[side].grandpa.forEach((row, i) =>
+      row.forEach((c) => (c.row = bands[side].grandma.length + i)),
+    );
+  }
+
+  const maxRows = Math.max(
+    1,
+    ...(["dad", "mom"] as const).map((s) => bands[s].grandma.length + bands[s].grandpa.length),
+  );
+  const D0max = Math.max(0, ...greatCols.filter((c) => c.row === 0).map((c) => c.depth));
+  const D1max = Math.max(0, ...greatCols.filter((c) => c.row >= 1).map((c) => c.depth));
+
+  const yRootPitch = Math.max(
+    ROOT_PITCH_MIN,
+    D1max * LEVEL_PITCH + halfB(cousinSize(0)) + halfA(SIZES.root) + MIN_GAP,
+  );
+  const yRoot0 = yGen2 - COL_BASE - halfB(cousinSize(0)) - D0max * LEVEL_PITCH;
+  const yRootOf = (row: number) => yRoot0 - row * yRootPitch;
+  const yGp = yRootOf(maxRows - 1) - GP_AIR - halfB(SIZES.root) - halfA(SIZES.grandparent);
+
+  // Each branch keeps two distinct lateral zones so the plaques' stalks never
+  // slice through the other band's roots: the خلان band starts at the trunk
+  // (px*1.5) and fans outward, and the أعمام band starts just OUTSIDE the full
+  // extent of the خلان band. The جدة plaque (inner GP_POCKET-0.5) then feeds a
+  // short fan into the خلان zone and the جد plaque (outer GP_POCKET+0.5) feeds
+  // the أعمام zone without crossing the sibling roots.
+  for (const side of ["dad", "mom"] as const) {
+    const px = side === "dad" ? 1 : -1;
+    const place = (row: GkCol[]) => {
+      let cursor = px * 1.5;
+      for (const c of row) {
+        c.left = cursor;
+        cursor += px * c.width;
+        track(Math.abs(c.left) + c.width);
+      }
+    };
+    bands[side].grandma.forEach(place);
+    let grandmaMax = 0;
+    for (const c of greatCols.filter((g) => g.side === side && g.group === "grandma"))
+      grandmaMax = Math.max(grandmaMax, Math.abs(c.left) + c.width);
+    const gpaStart = px * (grandmaMax + 1);
+    for (const row of bands[side].grandpa) {
+      let cursor = gpaStart;
+      for (const c of row) {
+        c.left = cursor;
+        cursor += px * c.width;
+        track(Math.abs(c.left) + c.width);
+      }
     }
   }
 
-  // great aunts' & uncles' own children hang in the "gk" lane, their kids
-  // cascade down into the cousin lanes. Because all great-kin share one lane
-  // while their parents sit on several root rows, fans are block-packed per
-  // side (owning their full subtree width) instead of centering on the great's
-  // column — that keeps every slot on the 140px grid, touch-free.
-  type GkRow = {
-    side: Side;
-    rootId: string;
-    p: FamilyPerson;
-    sp?: FamilyPerson;
-    col: number;
-    spCol: number;
-    kids: Desc[];
-  };
-  const gkRows: GkRow[] = [];
-  let fanCursorR = 1.5;
-  let fanCursorL = -1.5;
-  for (const fan of gkFans) {
-    const fw = fan.entries.reduce((s, e) => s + e.w, 0);
-    if (fw <= 0) continue;
-    const leftCol = fan.side === "dad" ? fanCursorR : fanCursorL - fw;
-    if (fan.side === "dad") fanCursorR += fw;
-    else fanCursorL -= fw;
-    const px = fan.side === "dad" ? 1 : -1;
-    let c = leftCol;
-    for (const e of fan.entries) {
-      const cc = c + e.w / 2;
-      if (e.sp) {
-        const personCol = cc + px * 0.5;
-        const spCol = cc - px * 0.5;
-        cols[e.p.id] = personCol;
-        cols[e.sp.id] = spCol;
-        track(personCol);
-        track(spCol);
-        gkRows.push({
-          side: fan.side,
-          rootId: fan.rootId,
-          p: e.p,
-          sp: e.sp,
-          col: personCol,
-          spCol,
-          kids: e.kids,
-        });
+  // column members own signed columns (like the clauses) feeding the scene
+  // width; the root (level 0) sits at the top of its column and every deeper
+  // level hangs one lane below its parent.
+  const placeColKids = (cc: number, kids: Desc[], level: number, px: number) => {
+    if (!kids.length) return;
+    const total = kids.reduce((s, k) => s + width(k), 0);
+    let c = cc - total / 2;
+    for (const k of kids) {
+      const w = width(k);
+      const cx2 = c + w / 2;
+      if (k.spouse) {
+        cols[k.person.id] = cx2 + px * 0.5;
+        cols[k.spouse.id] = cx2 - px * 0.5;
+        track(cols[k.person.id]!);
+        track(cols[k.spouse.id]!);
       } else {
-        cols[e.p.id] = cc;
-        track(cc);
-        gkRows.push({
-          side: fan.side,
-          rootId: fan.rootId,
-          p: e.p,
-          col: cc,
-          spCol: cc,
-          kids: e.kids,
-        });
+        cols[k.person.id] = cx2;
+        track(cx2);
       }
-      placeDesc(cc, e.kids);
-      c += e.w;
+      placeColKids(cx2, k.kids, level + 1, px);
+      c += w;
     }
+  };
+  for (const gc of greatCols) {
+    const px = gc.side === "dad" ? 1 : -1;
+    const center = gc.left + (px * gc.width) / 2;
+    if (gc.sp) {
+      cols[gc.root.id] = center + px * 0.5;
+      cols[gc.sp.id] = center - px * 0.5;
+      track(cols[gc.root.id]!);
+      track(cols[gc.sp.id]!);
+    } else {
+      cols[gc.root.id] = center;
+      track(center);
+    }
+    placeColKids(center, gc.kids, 1, px);
   }
 
   // ---- scene width grows with the family; centre everything ----
@@ -743,13 +828,6 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
         size: SIZES.grandparent,
       });
     }
-  }
-
-  for (const r of greatPlaces) {
-    const n = makeNode(r.p, xOf(r.col, cx), r.y, "root", r.side);
-    n.photoUrl = photos[r.p.id] ?? null;
-    n.role = friendlyRole(r.p.relative);
-    add(n);
   }
 
   const sibNode: Record<string, Clause> = {};
@@ -837,16 +915,8 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
     return best;
   };
 
-  // roots stalks: trunk to each great-aunt/uncle
-  for (const r of greatPlaces) {
-    const anch = trunkSm[r.side]![idxAt(r.side, r.y)]!;
-    const pos: Vec = { x: xOf(r.col, cx), y: r.y };
-    branches.push({
-      d: taperedPath(anch, pos, 13, 4, { x: 0, y: 4 }, seededRandom(`great-${r.side}-${r.p.id}`)),
-      fill: "root",
-      side: r.side,
-    });
-  }
+  // roots stalks, column twigs and light-paths are built in the great-column
+  // loop below, after the trunk samples exist.
 
   // aunt/uncle twigs: trunk to each clause
   for (const cl of clauses) {
@@ -895,74 +965,102 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
       );
   }
 
-  for (const r of greatPlaces) {
-    chains[r.p.id] = chainVia(
-      { x: byId[r.p.id]!.x, y: byId[r.p.id]!.y },
-      trunkSm[r.side]!,
-      idxAt(r.side, r.y),
-    );
-  }
+  // great aunts'/uncles' columns: roots sit on their band's row at the top,
+  // every child hangs directly under its parents' heart, and each one gets a
+  // twig from that heart plus a light-path back down to the trunk. A root stalk
+  // no longer reaches the central trunk — it drops straight from the matching
+  // grandparent plaque (أعمام from the جد plaque, خلان from the جدة plaque).
+  for (const gc of greatCols) {
+    const rootCol = cols[gc.root.id]!;
+    const rootPos: Vec = { x: xOf(rootCol, cx), y: yRootOf(gc.row) };
+    const rootChain = chainVia(rootPos, trunkSm[gc.side]!, idxAt(gc.side, rootPos.y));
+    chains[gc.root.id] = rootChain;
+    const rootNode = makeNode(gc.root, rootPos.x, rootPos.y, "root", gc.side);
+    rootNode.photoUrl = photos[gc.root.id] ?? null;
+    rootNode.role = friendlyRole(gc.root.relative);
+    add(rootNode);
 
-  // great aunts'/uncles' children on the "gk" lane, plus their own kids
-  // cascading down the cousin lanes; every one hangs a twig from its branch
-  // and a light-path back to the trunk.
-  for (const gg of gkRows) {
-    const rootChain = chains[gg.rootId] ?? [];
-    const pos: Vec = { x: xOf(gg.col, cx), y: yGk };
-    const chain: Chain = [pos, ...rootChain];
-    chains[gg.p.id] = chain;
-    const n = makeNode(gg.p, pos.x, pos.y, "cousin", gg.side);
-    n.size = cousinSize(0);
-    n.photoUrl = photos[gg.p.id] ?? null;
-    n.role = friendlyRole(gg.p.relative);
-    add(n);
-    const rootPos: Vec = { x: byId[gg.rootId]!.x, y: byId[gg.rootId]!.y };
+    // the grandparent this column belongs to: grandparents.person is the جد,
+    // its spouse the جدة. Each column hangs off its own plaque.
+    const gp = gpBySide.find((g) => g.side === gc.side)!;
+    const gpId = gc.group === "grandpa" ? gp.person.id : (gp.spouse?.id ?? gp.person.id);
+    const gpNode = byId[gpId]!;
+    const gpPos: Vec = { x: gpNode.x, y: gpNode.y + halfA(SIZES.grandparent) + 10 };
     branches.push({
-      d: taperedPath(rootPos, pos, 12, 5, { x: 0, y: 2 }, seededRandom(`gk-${gg.side}-${gg.p.id}`)),
-      fill: "twig",
-      side: gg.side,
+      d: taperedPath(
+        gpPos,
+        rootPos,
+        12,
+        4,
+        { x: 0, y: 10 },
+        seededRandom(`great-${gc.side}-${gc.root.id}`),
+      ),
+      fill: "root",
+      side: gc.side,
     });
-    if (gg.sp) {
-      const spos: Vec = { x: xOf(gg.spCol, cx), y: yGk };
-      const sn = makeNode(gg.sp, spos.x, spos.y, "cousin", gg.side);
-      sn.size = cousinSize(0);
-      sn.photoUrl = photos[gg.sp.id] ?? null;
-      sn.role = friendlyRole(gg.sp.relative);
+
+    let rootHeart: Vec = rootPos;
+    if (gc.sp) {
+      const spos: Vec = { x: xOf(cols[gc.sp.id]!, cx), y: yRootOf(gc.row) };
+      chains[gc.sp.id] = chainVia(spos, trunkSm[gc.side]!, idxAt(gc.side, spos.y));
+      const sn = makeNode(gc.sp, spos.x, spos.y, "root", gc.side);
+      sn.photoUrl = photos[gc.sp.id] ?? null;
       add(sn);
+      rootNode.pairWith = gc.sp.id;
+      sn.pairWith = gc.root.id;
+      rootHeart = { x: (rootPos.x + spos.x) / 2, y: rootPos.y };
       couples.push({
-        ids: [gg.p.id, gg.sp.id],
-        x: (pos.x + spos.x) / 2,
-        y: yGk,
-        side: gg.side,
-        size: cousinSize(0),
+        ids: [gc.root.id, gc.sp.id],
+        x: rootHeart.x,
+        y: rootHeart.y,
+        side: gc.side,
+        size: SIZES.root,
       });
     }
-    const walkGkKids = (kids: Desc[], depth: number, anch: Chain) => {
+    const placeColNodes = (kids: Desc[], level: number, groupAnchor: Chain, parentPos: Vec) => {
+      const y = yRootOf(gc.row) + level * LEVEL_PITCH;
       for (const k of kids) {
-        const kpos: Vec = { x: cx + cols[k.person.id]! * SLOT, y: yCousin(depth) };
-        const kchain: Chain = [kpos, ...anch];
+        const kpos: Vec = { x: xOf(cols[k.person.id]!, cx), y };
+        const kchain: Chain = [kpos, ...groupAnchor];
         chains[k.person.id] = kchain;
-        const kn = makeNode(k.person, kpos.x, kpos.y, "cousin", gg.side);
-        kn.size = cousinSize(depth);
+        const kn = makeNode(k.person, kpos.x, kpos.y, "cousin", gc.side);
+        kn.size = cousinSize(level - 1);
         kn.photoUrl = photos[k.person.id] ?? null;
         kn.role = friendlyRole(k.person.relative);
         add(kn);
         branches.push({
           d: taperedPath(
-            anch[0]!,
+            parentPos,
             kpos,
-            8,
+            10,
             4,
             { x: 0, y: 0 },
-            seededRandom(`gk-${gg.side}-${k.person.id}`),
+            seededRandom(`twig-${gc.side}-${k.person.id}`),
           ),
           fill: "twig",
-          side: gg.side,
+          side: gc.side,
         });
-        walkGkKids(k.kids, depth + 1, kchain);
+        let childHeart: Vec = kpos;
+        if (k.spouse) {
+          const spos: Vec = { x: xOf(cols[k.spouse.id]!, cx), y };
+          chains[k.spouse.id] = [spos, ...groupAnchor];
+          const sn = makeNode(k.spouse, spos.x, spos.y, "cousin", gc.side);
+          sn.size = cousinSize(level - 1);
+          sn.photoUrl = photos[k.spouse.id] ?? null;
+          add(sn);
+          childHeart = { x: (kpos.x + spos.x) / 2, y };
+          couples.push({
+            ids: [k.person.id, k.spouse.id],
+            x: childHeart.x,
+            y: childHeart.y,
+            side: gc.side,
+            size: cousinSize(level - 1),
+          });
+        }
+        placeColNodes(k.kids, level + 1, kchain, childHeart);
       }
     };
-    walkGkKids(gg.kids, 0, chain);
+    placeColNodes(gc.kids, 1, rootChain, rootHeart);
   }
 
   for (const cl of clauses) {
@@ -978,16 +1076,16 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
   }
 
   function placeCousins(cl: Clause, parentChain: Chain, center: number) {
-    const walkKids = (kids: Desc[], depth: number, anch: Chain) => {
+    const walkKids = (kids: Desc[], depth: number, anch: Chain, parentPos: Vec) => {
       for (const k of kids) {
-        const pos: Vec = { x: center + cols[k.person.id]! * SLOT, y: yCousin(depth) };
+        const y = yCousin(depth);
+        const pos: Vec = { x: center + cols[k.person.id]! * SLOT, y };
         const chain: Chain = [pos, ...anch];
         chains[k.person.id] = chain;
         const n = makeNode(k.person, pos.x, pos.y, "cousin", cl.side);
         n.size = cousinSize(depth);
         n.photoUrl = photos[k.person.id] ?? null;
         add(n);
-        const parentPos = anch[0]!;
         branches.push({
           d: taperedPath(
             parentPos,
@@ -1000,10 +1098,35 @@ export function layoutTree(data: FamilyData, deps: LayoutDeps): TreeLayout {
           fill: "twig",
           side: cl.side,
         });
-        walkKids(k.kids, depth + 1, chain);
+        let childHeart: Vec = pos;
+        if (k.spouse) {
+          const spos: Vec = { x: center + cols[k.spouse.id]! * SLOT, y };
+          chains[k.spouse.id] = [spos, ...anch];
+          const sn = makeNode(k.spouse, spos.x, spos.y, "cousin", cl.side);
+          sn.size = cousinSize(depth);
+          sn.photoUrl = photos[k.spouse.id] ?? null;
+          add(sn);
+          childHeart = { x: (pos.x + spos.x) / 2, y };
+          couples.push({
+            ids: [k.person.id, k.spouse.id],
+            x: childHeart.x,
+            y: childHeart.y,
+            side: cl.side,
+            size: cousinSize(depth),
+          });
+        }
+        walkKids(k.kids, depth + 1, chain, childHeart);
       }
     };
-    walkKids(cl.kids, 0, parentChain);
+    const pnY = yGen2;
+    walkKids(
+      cl.kids,
+      0,
+      parentChain,
+      cl.sp
+        ? { x: (byId[cl.p.id]!.x + byId[cl.sp.id]!.x) / 2, y: pnY }
+        : { x: byId[cl.p.id]!.x, y: pnY },
+    );
   }
 
   // Tamim and the parents anchor the composition; everything else just keeps

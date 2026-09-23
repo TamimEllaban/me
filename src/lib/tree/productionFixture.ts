@@ -78,8 +78,7 @@ export const PRODUCTION_RELATIVES: RelativeLike[] = [
   // Children of the great aunts & uncles — maternal grandmother's side
   rel("hoda-hager", "هاجر", "بنت خالة ماما", "Cousins", "khala-hoda"),
   rel("maha-ahmed", "احمد", "ابن خالة ماما", "Cousins", "khala-maha"),
-  rel("wafa-rawan", "روان", "بنت خالة ماما", "Cousins", "khala-wafa", "ibrahim-rawan"),
-  rel("ibrahim-rawan", "ابراهيم", "زوج بنت خالة ماما", "Cousins", null, "wafa-rawan"),
+  rel("wafa-rawan", "روان", "بنت خالة ماما", "Cousins", "khala-wafa"),
   rel("wafa-alaa", "الاء", "بنت خالة ماما", "Cousins", "khala-wafa"),
   rel("wafa-abdelrahman", "عبد الرحمن", "ابن خالة ماما", "Cousins", "khala-wafa"),
   rel("wafa-abdelatif", "عبد اللطيف", "ابن خالة ماما", "Cousins", "khala-wafa"),

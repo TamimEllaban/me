@@ -3,7 +3,7 @@ import { Trees } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RelativeLike } from "@/components/relative-editor";
 import type { FamilyData, FamilyDescendant, FamilyPerson } from "@/lib/family-data";
-import { DEFAULT_RELATIVE_IMAGE } from "@/lib/db";
+import { DEFAULT_RELATIVE_IMAGE } from "@/lib/default-relative-image";
 import { PersonDialog } from "./PersonDialog";
 
 /** One tappable person in the compact list card style. */

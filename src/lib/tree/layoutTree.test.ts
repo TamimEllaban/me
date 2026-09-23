@@ -387,11 +387,11 @@ test("production dataset: every relative gets one node, zero bbox overlaps at an
   const layout = layoutTree(data, DEPS);
   assert.equal(
     layout.nodes.length,
-    70,
-    "one node per production relative (69) plus Tamim, duplicate greats deduped",
+    69,
+    "one node per production relative (68) plus Tamim, duplicate greats deduped",
   );
   assert.equal(Object.keys(layout.byId).length, layout.nodes.length, "ids stay unique");
-  assert.equal(countOverlaps(layout.nodes), 0, "no bbox overlaps in the real 69-relative dataset");
+  assert.equal(countOverlaps(layout.nodes), 0, "no bbox overlaps in the real 68-relative dataset");
 
   for (const n of layout.nodes) {
     assert.ok(n.x >= 70 && n.x <= layout.W - 70, `${n.id} x in bounds`);
@@ -427,14 +427,10 @@ test("production dataset: children of the great aunts/uncles hang under their ro
       `${id} has a light path`,
     );
   }
-  // the one couple among the great-kin renders with a heart
+  // روان is a single (ان revoked إبراهيم) — دانه hangs under her directly
   const rawSieh = layout.byId["wafa-rawan"]!;
-  const ibrahim = layout.byId["ibrahim-rawan"]!;
-  assert.ok(rawSieh && ibrahim, "روان and ابراهيم both placed");
-  assert.ok(
-    layout.couples.some((c) => c.ids[0] === "wafa-rawan" && c.ids[1] === "ibrahim-rawan"),
-    "great-kin couple gets a heart",
-  );
+  assert.ok(rawSieh, "روان is placed");
+  assert.ok(!layout.byId["ibrahim-rawan"], "إبراهيم (زوج بنت الخالة) removed");
   // deep grandchild of a great lands in the cousin lanes
   assert.ok(layout.byId["rawan-dana"], "دانه (benet وفاء) is placed");
   // great-kin wait between the roots and the parents row: below their root's row

@@ -6,7 +6,7 @@ import {
   RemoveRelativeButton,
   type RelativeLike,
 } from "@/components/relative-editor";
-import { DEFAULT_RELATIVE_IMAGE } from "@/lib/db";
+import { DEFAULT_RELATIVE_IMAGE } from "@/lib/default-relative-image";
 
 /**
  * The full person dialog (photo / name / bio / add-branch / edit / remove) —

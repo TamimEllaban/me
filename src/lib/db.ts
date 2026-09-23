@@ -6,6 +6,7 @@
 
 import { Pool } from "@neondatabase/serverless";
 import { randomBytes } from "node:crypto";
+import { DEFAULT_RELATIVE_IMAGE } from "@/lib/default-relative-image";
 
 const CACHE_TTL_MS = 30_000;
 
@@ -130,7 +131,7 @@ export async function updateChild(patch: {
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
     values.push(value);
-    sets.push(`${key} = $${values.length}`);
+    sets.push(`"${key}" = $${values.length}`);
   }
   if (!sets.length) return true;
   try {
@@ -176,8 +177,7 @@ export async function updateRelative(
   return updateField("relatives", id, dbPatch);
 }
 
-export const DEFAULT_RELATIVE_IMAGE =
-  "https://res.cloudinary.com/djseokhow/image/upload/tamims-world/memory-smile.jpg";
+export { DEFAULT_RELATIVE_IMAGE };
 
 export async function addRelative(input: {
   name: string;
@@ -286,7 +286,7 @@ async function updateField<T extends Record<string, unknown>>(
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
     values.push(value);
-    sets.push(`${key} = $${values.length}`);
+    sets.push(`"${key}" = $${values.length}`);
   }
   if (!sets.length) return true;
   try {

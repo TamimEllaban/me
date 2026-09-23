@@ -900,22 +900,10 @@ const relatives = [
     "بنت خالة ماما وفاء.",
     "من أولاد خالة ماما وفاء.",
     "khala-wafa",
-    "ibrahim-rawan",
+    null,
   ],
   [
     62,
-    "ibrahim-rawan",
-    "ابراهيم",
-    "زوج بنت خالة ماما",
-    "Cousins",
-    imgPlaceholders.steps,
-    "زوج روان بنت خالة ماما وفاء.",
-    "ابراهيم، زوج روان ووالد دانه.",
-    null,
-    "wafa-rawan",
-  ],
-  [
-    63,
     "wafa-alaa",
     "الاء",
     "بنت خالة ماما",
@@ -927,7 +915,7 @@ const relatives = [
     null,
   ],
   [
-    64,
+    63,
     "wafa-abdelrahman",
     "عبد الرحمن",
     "ابن خالة ماما",
@@ -939,7 +927,7 @@ const relatives = [
     null,
   ],
   [
-    65,
+    64,
     "wafa-abdelatif",
     "عبد اللطيف",
     "ابن خالة ماما",
@@ -951,13 +939,13 @@ const relatives = [
     null,
   ],
   [
-    66,
+    65,
     "rawan-dana",
     "دانه",
     "بنت بنت الخالة",
     "Cousins",
     imgPlaceholders.smile,
-    "بنت روان وابراهيم.",
+    "بنت روان بنت خالة ماما وفاء.",
     "حفيدة وفاء خالة ماما من ابنتها روان.",
     "wafa-rawan",
     null,
@@ -965,7 +953,7 @@ const relatives = [
   // ---- Children of the great aunts & uncles (maternal grandfather's side) ----
   // عم ماما حسن
   [
-    67,
+    66,
     "mama-hassan-rim",
     "ريم",
     "بنت عم ماما",
@@ -977,7 +965,7 @@ const relatives = [
     null,
   ],
   [
-    68,
+    67,
     "mama-hassan-sara",
     "سارة",
     "بنت عم ماما",
@@ -990,7 +978,7 @@ const relatives = [
   ],
   // عم ماما محمد
   [
-    69,
+    68,
     "mama-mohamed-karim",
     "كريم",
     "ابن عم ماما",
@@ -1002,7 +990,7 @@ const relatives = [
     null,
   ],
   [
-    70,
+    69,
     "mama-mohamed-omar",
     "عمر",
     "ابن عم ماما",

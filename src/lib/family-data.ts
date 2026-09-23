@@ -161,7 +161,7 @@ function buildDescendants(
 
 /**
  * Attach a spouse reference to every descendant of a great aunt/uncle so the
- * tree layout can draw a couple there too (e.g. روان and ابراهيم).
+ * tree layout can draw a couple there too.
  */
 function attachSpouses(relatives: RelativeLike[], kids: FamilyDescendant[]): FamilyDescendant[] {
   const find = byId(relatives);
@@ -198,11 +198,17 @@ function buildBranch(
   });
 
   const greats = relatives.filter((r) => r.group === "Great aunts & uncles");
-  const grandSibRe = side === "dad" ? /^(عم |عمة )/ : /^عم ماما/;
-  const grandmaSibRe = side === "dad" ? /^(خال |خالة )/ : /^خال ماما|^خالة ماما/;
-  const grandSibs = greats.filter((g) => grandSibRe.test(g.relationship));
-  const grandmaSibs = greats.filter((g) => grandmaSibRe.test(g.relationship));
-  const unplaced = greats.filter(
+  // Only the greats of THIS branch's side (بابا or ماما in the label). Within a
+  // side, عم/عمة are siblings of the grandfather (أعمام) and خال/خالة are
+  // siblings of the grandmother (خلان) — the layout hangs each band off its own
+  // grandparent plaque.
+  const sideWord = side === "dad" ? /بابا/ : /ماما/;
+  const onSide = greats.filter((g) => sideWord.test(g.relationship));
+  const grandSibRe = /^(عم |عمة )/;
+  const grandmaSibRe = /^(خال |خالة )/;
+  const grandSibs = onSide.filter((g) => grandSibRe.test(g.relationship));
+  const grandmaSibs = onSide.filter((g) => grandmaSibRe.test(g.relationship));
+  const unplaced = onSide.filter(
     (g) => !grandSibRe.test(g.relationship) && !grandmaSibRe.test(g.relationship),
   );
   const makePerson = (r: RelativeLike): FamilyPerson => ({

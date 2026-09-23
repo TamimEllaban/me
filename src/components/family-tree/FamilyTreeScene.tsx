@@ -179,18 +179,34 @@ export function FamilyTreeScene({
     fitBox(boxOf(f), animated);
   };
 
-  // Contain the whole layout (W x H) inside the viewport: the largest scale
-  // with nothing cut off. This is the single step used by both the open view
-  // and the reset button.
+  // Fit the tree's real content (union of all ornament bounds) inside the
+  // viewport: centered, largest scale with nothing cut off. Used by both the
+  // open view and the reset button.
   const fitToViewport = (animated: boolean) => {
     const el = rootRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const k = Math.min(MAX_K, (r.width - 16) / layout.W, (r.height - 16) / layout.H);
+    if (r.width <= 0 || r.height <= 0) return;
+    let l = Infinity;
+    let t = Infinity;
+    let R = -Infinity;
+    let B = -Infinity;
+    for (const n of layout.nodes) {
+      const q = nodeBounds(n);
+      l = Math.min(l, q.left);
+      t = Math.min(t, q.top);
+      R = Math.max(R, q.right);
+      B = Math.max(B, q.bottom);
+    }
+    if (!isFinite(l)) return;
+    const PAD = 36;
+    const w = R - l + PAD * 2;
+    const h = B - t + PAD * 2;
+    const k = Math.min(MAX_K, (r.width - 16) / w, (r.height - 16) / h);
     camRef.current = {
       k,
-      tx: r.width / 2 - (layout.W * k) / 2,
-      ty: r.height / 2 - (layout.H * k) / 2,
+      tx: r.width / 2 - ((l + R) / 2) * k,
+      ty: r.height / 2 - ((t + B) / 2) * k,
     };
     if (animated) easeWorld();
     else applyWorld();
@@ -203,8 +219,13 @@ export function FamilyTreeScene({
 
   // ---------- init ----------
   useLayoutEffect(() => {
-    // open on the fit-to-viewport view of the whole tree
-    fitToViewport(false);
+    // open on the fitted view of the whole tree (retry once if the viewport
+    // hasn't measured yet)
+    if (rootRef.current) {
+      const r = rootRef.current.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) fitToViewport(false);
+      else requestAnimationFrame(() => fitToViewport(false));
+    }
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
     const onChange = () => setReducedMotion(rm.matches);
@@ -503,7 +524,7 @@ export function FamilyTreeScene({
       <div
         ref={worldRef}
         className="absolute left-0 top-0 will-change-transform"
-        style={{ width: layout.W, height: layout.H }}
+        style={{ width: layout.W, height: layout.H, transformOrigin: "0 0" }}
       >
         {/* parallax backdrop */}
         <div ref={bgWrapRef} className="absolute inset-0 will-change-transform">
