@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { Play } from "lucide-react";
+import { ArrowRightLeft, Check, Play } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PageIntro, WorldShell } from "@/components/world-shell";
-import { getGalleryData, type GalleryItem } from "@/lib/gate.functions";
+import { getGalleryData, moveGalleryItemCategory, type GalleryItem } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/gallery")({
   loader: () => getGalleryData(),
@@ -33,7 +33,25 @@ function cleanName(name: string) {
   return name.replace(/\.(jpg|jpeg|mp4)$/i, "").trim();
 }
 
-function ItemCard({ item }: { item: GalleryItem }) {
+function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: string[] }) {
+  const router = useRouter();
+  const [moving, setMoving] = useState(false);
+  const [moveMsg, setMoveMsg] = useState<string | null>(null);
+
+  async function handleMove(newCategory: string) {
+    if (!newCategory || newCategory === item.category) return;
+    setMoving(true);
+    setMoveMsg(null);
+    const { ok } = await moveGalleryItemCategory({ data: { id: item.id, category: newCategory } });
+    setMoving(false);
+    if (ok) {
+      setMoveMsg(`Moved to "${newCategory}" ✓`);
+      await router.invalidate();
+    } else {
+      setMoveMsg("Could not move — try again");
+    }
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -71,9 +89,35 @@ function ItemCard({ item }: { item: GalleryItem }) {
         <div className="px-5 pb-5">
           <DialogTitle className="font-display text-xl">{cleanName(item.sourceName)}</DialogTitle>
           <DialogDescription className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            {item.category}
+            <span className="font-medium text-foreground">{item.category}</span>
             {item.date && <span>· {item.date}</span>}
           </DialogDescription>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <ArrowRightLeft className="size-3.5 text-primary" />
+              Move to another category:
+            </span>
+            <select
+              value={item.category}
+              disabled={moving}
+              onChange={(e) => handleMove(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-foreground transition focus:ring-1 focus:ring-primary"
+            >
+              {allCategories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            {moving && <span className="text-xs text-muted-foreground">Saving…</span>}
+            {moveMsg && (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <Check className="size-3" />
+                {moveMsg}
+              </span>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -84,6 +128,7 @@ function GalleryPage() {
   const { categories, counts } = Route.useLoaderData();
   const [filter, setFilter] = useState("All");
   const shown = filter === "All" ? categories : categories.filter((c) => c.name === filter);
+  const allCategories = Array.from(new Set(categories.map((c) => c.name)));
 
   return (
     <WorldShell>
@@ -109,7 +154,7 @@ function GalleryPage() {
             <h2 className="mb-4 font-display text-2xl">{category.name}</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {category.items.map((item) => (
-                <ItemCard key={item.id} item={item} />
+                <ItemCard key={item.id} item={item} allCategories={allCategories} />
               ))}
             </div>
           </section>

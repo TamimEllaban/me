@@ -12,7 +12,9 @@ import {
   addRelative as dbAddRelative,
   deleteRelative as dbDeleteRelative,
   loadGalleryItems,
+  loadGalleryOverrides,
   updateChild as dbUpdateChild,
+  updateGalleryItemCategory as dbUpdateGalleryItemCategory,
   updateMemory,
   updateMemoryImage,
   updateRelative,
@@ -132,18 +134,26 @@ export type GalleryCategory = { name: string; items: GalleryItem[] };
 export const getGalleryData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
   const raw = (mediaCatalog as { items: GalleryItem[] }).items;
-  const dbItems = await loadGalleryItems();
+  const [dbItems, overrides] = await Promise.all([
+    loadGalleryItems(),
+    loadGalleryOverrides(),
+  ]);
+  const overrideMap = new Map(overrides.map((o) => [o.id, o.category]));
+
   const allRaw: GalleryItem[] = [
     ...dbItems.map((d) => ({
       id: d.id,
       kind: d.kind,
       sourceName: d.sourceName,
-      category: d.category,
+      category: overrideMap.get(d.id) || d.category,
       date: d.date,
       url: d.url,
       thumb: d.kind === "video" ? videoThumbUrl(d.url) : optimizeUrl(d.url, 640),
     })),
-    ...raw,
+    ...raw.map((r) => ({
+      ...r,
+      category: overrideMap.get(r.id) || r.category,
+    })),
   ];
   const items: GalleryItem[] = allRaw.map((item) => ({
     ...item,
@@ -168,6 +178,13 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
   };
   return { categories, counts };
 });
+
+export const moveGalleryItemCategory = createServerFn({ method: "POST" })
+  .inputValidator(({ id, category }: { id: string; category: string }) => ({ id, category }))
+  .handler(async ({ data }) => {
+    await requireUnlocked();
+    return await dbUpdateGalleryItemCategory(data.id, data.category);
+  });
 
 // --- Family admin: Cloudinary photo upload / delete + wiring into the site ---
 

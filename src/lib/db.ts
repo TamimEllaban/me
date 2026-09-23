@@ -133,6 +133,15 @@ export const loadGalleryItems = () =>
     async () => (await query<GalleryItemRow>(GALLERY_SQL)) ?? [],
   );
 
+export type GalleryOverrideRow = { id: string; category: string };
+const GALLERY_OVERRIDES_SQL = `SELECT id, category FROM gallery_overrides`;
+
+export const loadGalleryOverrides = () =>
+  withCache<GalleryOverrideRow[]>(
+    "gallery_overrides",
+    async () => (await query<GalleryOverrideRow>(GALLERY_OVERRIDES_SQL)) ?? [],
+  );
+
 export async function updateChild(patch: {
   name?: string | undefined;
   birthdate?: string | undefined;
@@ -354,6 +363,29 @@ export async function addMemory(input: {
     return { ok: true, id };
   } catch (error) {
     console.error("[db] addMemory failed:", error);
+    return { ok: false };
+  }
+}
+
+export async function updateGalleryItemCategory(
+  id: string,
+  category: string,
+): Promise<{ ok: boolean }> {
+  const client = getPool();
+  if (!client) return { ok: false };
+  try {
+    const trimmedCat = category.trim();
+    await client.query(
+      `INSERT INTO gallery_overrides (id, category, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (id) DO UPDATE SET category = EXCLUDED.category, updated_at = now()`,
+      [id, trimmedCat],
+    );
+    await client.query(`UPDATE gallery_items SET category = $1 WHERE id = $2`, [trimmedCat, id]);
+    invalidate(["gallery_items", "gallery_overrides"]);
+    return { ok: true };
+  } catch (error) {
+    console.error("[db] updateGalleryItemCategory failed:", error);
     return { ok: false };
   }
 }

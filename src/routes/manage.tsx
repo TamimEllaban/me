@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import {
   BookOpen,
   Calendar,
@@ -9,6 +9,7 @@ import {
   Home,
   Images,
   Link2,
+  Play,
   Plus,
   Save,
   Sparkles,
@@ -31,12 +32,21 @@ import {
   getMemoriesData,
   getRelativesData,
   listFamilyPhotos,
+  moveGalleryItemCategory,
   setFamilyDetails,
   setFamilyPhoto,
   updateMemoryEntry,
   updateRelativeEntry,
 } from "@/lib/gate.functions";
 import { uploadPhotoDirect } from "@/lib/photo-upload";
+
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 const DEFAULT_GALLERY_CATEGORIES = [
   "01 - يوم الولاده",
@@ -70,12 +80,14 @@ async function loadManage() {
   const galleryCategories = Array.from(
     new Set([...DEFAULT_GALLERY_CATEGORIES, ...gallery.categories.map((c) => c.name)]),
   );
+  const allGalleryItems = gallery.categories.flatMap((c) => c.items);
   return {
     child: home.child,
     memories: memories.memories,
     relatives: relatives.relatives,
     photos: photos.photos,
     galleryCategories,
+    galleryItems: allGalleryItems,
   };
 }
 
@@ -179,7 +191,7 @@ function PhotoFlow({
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [galleryPhotoTitle, setGalleryPhotoTitle] = useState("");
-  const [galleryDate, setGalleryDate] = useState("");
+  const [galleryDate, setGalleryDate] = useState(getTodayIsoDate());
 
   // Memory-specific states
   const [memoryMode, setMemoryMode] = useState<"existing" | "new">("existing");
@@ -187,7 +199,7 @@ function PhotoFlow({
   const [targetMemoryId, setTargetMemoryId] = useState("");
   const [newMemoryTitle, setNewMemoryTitle] = useState("");
   const [newMemoryCategory, setNewMemoryCategory] = useState("Milestones");
-  const [newMemoryDate, setNewMemoryDate] = useState("");
+  const [newMemoryDate, setNewMemoryDate] = useState(getTodayIsoDate());
   const [newMemoryStory, setNewMemoryStory] = useState("");
 
   // Relative-specific states
@@ -932,10 +944,14 @@ function EditDetails({
   child,
   memories,
   relatives,
+  galleryItems,
+  galleryCategories,
 }: {
   child: LoaderData["child"];
   memories: LoaderData["memories"];
   relatives: LoaderData["relatives"];
+  galleryItems: LoaderData["galleryItems"];
+  galleryCategories: string[];
 }) {
   const [childForm, setChildForm] = useState({
     name: child.name,
@@ -968,9 +984,9 @@ function EditDetails({
       <div className="mb-4 flex items-center gap-3">
         <StepBadge n={3} />
         <div>
-          <h2 className="font-display text-xl leading-tight">Fix the words</h2>
+          <h2 className="font-display text-xl leading-tight">Fix the words & organize</h2>
           <p className="text-xs text-muted-foreground">
-            Captions, names and little stories behind the photos.
+            Captions, names, stories, and moving gallery items between categories.
           </p>
         </div>
       </div>
@@ -979,6 +995,7 @@ function EditDetails({
           <TabsTrigger value="child">Tamim's page</TabsTrigger>
           <TabsTrigger value="memories">Memory captions</TabsTrigger>
           <TabsTrigger value="relatives">Relative cards</TabsTrigger>
+          <TabsTrigger value="gallery">Gallery category organizer ({galleryItems.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="child" className="mt-4 space-y-4">
@@ -1028,8 +1045,128 @@ function EditDetails({
         <TabsContent value="relatives" className="mt-4">
           <RelForm items={relatives} statuses={edits} onSave={saveRelative} />
         </TabsContent>
+
+        <TabsContent value="gallery" className="mt-4">
+          <GalleryOrganizer items={galleryItems} categories={galleryCategories} />
+        </TabsContent>
       </Tabs>
     </section>
+  );
+}
+
+function GalleryOrganizer({
+  items,
+  categories,
+}: {
+  items: LoaderData["galleryItems"];
+  categories: string[];
+}) {
+  const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<Record<string, string>>({});
+
+  const filtered = items.filter((item) => {
+    const matchesCat = selectedCategory === "All" || item.category === selectedCategory;
+    const matchesSearch = !search || item.sourceName.toLowerCase().includes(search.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  async function handleMove(id: string, newCategory: string) {
+    if (!newCategory) return;
+    setMovingId(id);
+    const { ok } = await moveGalleryItemCategory({ data: { id, category: newCategory } });
+    setMovingId(null);
+    if (ok) {
+      setStatusMsg((prev) => ({ ...prev, [id]: `Moved to "${newCategory}" ✓` }));
+      setTimeout(() => setStatusMsg((prev) => ({ ...prev, [id]: "" })), 3500);
+      await router.invalidate();
+    } else {
+      setStatusMsg((prev) => ({ ...prev, [id]: "Move failed" }));
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search photo or video by name…"
+            className="h-10 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+        {["All", ...categories].map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setSelectedCategory(c)}
+            className={`min-h-8 shrink-0 rounded-full px-3 text-xs font-medium transition ${
+              selectedCategory === c
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "border border-border bg-background text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {filtered.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 rounded-lg border border-border/80 bg-background/80 p-3 shadow-sm transition hover:border-primary/50"
+          >
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-border bg-card">
+              <img src={item.thumb} alt="" className="size-full object-cover" />
+              {item.kind === "video" && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/35">
+                  <Play className="size-4 fill-white text-white" />
+                </span>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="truncate text-xs font-semibold" title={item.sourceName}>
+                {item.sourceName.replace(/\.(jpg|jpeg|mp4)$/i, "")}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="shrink-0 text-[0.7rem] text-muted-foreground">Move to:</span>
+                <select
+                  value={item.category}
+                  disabled={movingId === item.id}
+                  onChange={(e) => handleMove(item.id, e.target.value)}
+                  className="h-7 w-full max-w-[170px] truncate rounded border border-input bg-card px-2 text-[0.72rem] font-medium text-foreground transition focus:ring-1 focus:ring-primary"
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {statusMsg[item.id] && (
+                <p className="text-[0.72rem] font-medium text-emerald-700 dark:text-emerald-300">
+                  {statusMsg[item.id]}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="py-8 text-center text-xs text-muted-foreground">
+          No items found in this category.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1195,7 +1332,13 @@ function ManagePage() {
           onPhotoReady={setCurrentUrl}
         />
         <PhotoLibrary photos={data.photos} onPick={setCurrentUrl} />
-        <EditDetails child={data.child} memories={data.memories} relatives={data.relatives} />
+        <EditDetails
+          child={data.child}
+          memories={data.memories}
+          relatives={data.relatives}
+          galleryItems={data.galleryItems}
+          galleryCategories={data.galleryCategories}
+        />
       </div>
     </WorldShell>
   );
