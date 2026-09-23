@@ -1,27 +1,39 @@
 import { memo } from "react";
 import type { BranchPath } from "@/lib/tree/layoutTree";
 
-/** SVG defs: one reusable bark-texture pattern and one soft wood gradient. */
+/** SVG defs: one reusable bark-grain pattern and one soft wood gradient. */
 export function TreeArtDefs() {
   return (
     <defs>
-      <filter id="barkTurb" x="0%" y="0%" width="100%" height="100%">
-        <feTurbulence
-          type="fractalNoise"
-          baseFrequency="0.02 0.16"
-          numOctaves="3"
-          seed="11"
-          result="n"
-        />
-        <feColorMatrix
-          in="n"
-          type="matrix"
-          values="0 0 0 0 0.36  0 0 0 0 0.23  0 0 0 0 0.13  0 0 0 0.55 0"
-        />
-      </filter>
       <pattern id="barkTex" width="90" height="90" patternUnits="userSpaceOnUse">
-        <rect width="90" height="90" fill="none" />
-        <rect width="90" height="90" filter="url(#barkTurb)" />
+        <path
+          d="M0 12 Q 22 8 45 13 T 90 11"
+          fill="none"
+          stroke="#5c3b1e"
+          strokeWidth={2}
+          opacity={0.4}
+        />
+        <path
+          d="M0 32 Q 30 27 60 33 T 90 30"
+          fill="none"
+          stroke="#5c3b1e"
+          strokeWidth={2}
+          opacity={0.32}
+        />
+        <path
+          d="M0 52 Q 24 48 48 53 T 90 51"
+          fill="none"
+          stroke="#5c3b1e"
+          strokeWidth={2}
+          opacity={0.4}
+        />
+        <path
+          d="M0 72 Q 28 68 56 74 T 90 71"
+          fill="none"
+          stroke="#5c3b1e"
+          strokeWidth={2}
+          opacity={0.32}
+        />
       </pattern>
       <linearGradient id="plaqueGrad" x1="0" x2="1" y1="0" y2="1">
         <stop offset="0" stopColor="#b4824e" />

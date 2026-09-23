@@ -415,15 +415,15 @@
    translate(-50%, -50%) placement transform */
 .ornament-wob {
   transform-origin: 50% 8%;
-  animation: ornamentSway var(--wob-dur, 6s) ease-in-out infinite alternate;
+  animation: ornamentSway var(--wob-dur, 8s) ease-in-out infinite alternate;
   animation-delay: var(--wob-delay, 0s);
 }
 @keyframes ornamentSway {
   from {
-    rotate: -1.6deg;
+    rotate: -0.8deg;
   }
   to {
-    rotate: 1.6deg;
+    rotate: 0.8deg;
   }
 }
 
@@ -596,6 +596,20 @@
 .no-effects .particle,
 .no-effects .bird {
   display: none;
+}
+
+/* touch devices (phones / small views): drop the constant ambient motion that
+   caused tremor and stutter while the tree is small on screen */
+@media (pointer: coarse) {
+  .ornament-wob {
+    animation: none !important;
+  }
+  .bird {
+    display: none !important;
+  }
+  .light-path polyline:last-child {
+    animation: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

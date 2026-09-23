@@ -30,9 +30,17 @@ const MIN_K = 0.05;
 const MAX_K = 3.2;
 
 type Camera = { k: number; tx: number; ty: number };
+type Viewport = { left: number; top: number; width: number; height: number };
 
-function worldPoint(c: Camera, sx: number, sy: number, r: DOMRect): Vec {
+function worldPoint(c: Camera, sx: number, sy: number, r: Viewport): Vec {
   return { x: (sx - r.left - c.tx) / c.k, y: (sy - r.top - c.ty) / c.k };
+}
+
+// Snap translation to whole device pixels so the whole tree doesn't shake on
+// sub-pixel positions (the "رعشة" on small screens / phones).
+function snapViewport(tx: number, ty: number): { tx: number; ty: number } {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  return { tx: Math.round(tx * dpr) / dpr, ty: Math.round(ty * dpr) / dpr };
 }
 
 export function FamilyTreeScene({
@@ -97,6 +105,7 @@ export function FamilyTreeScene({
   const worldRef = useRef<HTMLDivElement>(null);
   const bgWrapRef = useRef<HTMLDivElement>(null);
   const camRef = useRef<Camera>({ k: 1, tx: 0, ty: 0 });
+  const vpRef = useRef<Viewport>({ left: 0, top: 0, width: 0, height: 0 });
   const gestureRef = useRef<{
     points: Map<number, { x: number; y: number }>;
     mode: "idle" | "pan" | "pinch";
@@ -116,23 +125,40 @@ export function FamilyTreeScene({
   });
   const parRef = useRef<Vec>({ x: 0, y: 0 });
   const parTarget = useRef<Vec>({ x: 0, y: 0 });
-  const rafRef = useRef(0);
+  const fpsRafRef = useRef(0);
+  const parRafRef = useRef(0);
+  const coarseRef = useRef(
+    typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches,
+  );
+
+  // Cache the viewport rect: reading getBoundingClientRect() on every pointer
+  // move forces a synchronous layout of the whole (very wide) scene and was a
+  // major cause of the stutter while panning/zooming.
+  const measureViewport = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    vpRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
+  };
 
   // ---------- camera helpers ----------
   const applyWorld = () => {
     const el = worldRef.current;
     if (!el) return;
     const c = camRef.current;
-    el.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.k})`;
+    const { tx, ty } = snapViewport(c.tx, c.ty);
+    el.style.transform = `translate(${tx}px, ${ty}px) scale(${c.k})`;
   };
   const easeWorld = () => {
     const el = worldRef.current;
     if (!el) return;
-    el.style.transition = "transform 720ms cubic-bezier(.22,1,.36,1)";
+    // shorter travel time on touch devices to avoid long re-scaling hitches
+    const ms = coarseRef.current ? 420 : 720;
+    el.style.transition = `transform ${ms}ms cubic-bezier(.22,1,.36,1)`;
     applyWorld();
     window.setTimeout(() => {
       if (worldRef.current) worldRef.current.style.transition = "none";
-    }, 760);
+    }, ms + 40);
   };
 
   const boxOf = (f: FocusGroup): { cx: number; cy: number; w: number; h: number } => {
@@ -161,16 +187,12 @@ export function FamilyTreeScene({
   };
 
   const fitBox = (box: { cx: number; cy: number; w: number; h: number }, animated: boolean) => {
-    const el = rootRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    let k = Math.min((r.width - 20) / box.w, (r.height - 20) / box.h);
+    const vp = vpRef.current;
+    if (vp.width <= 0 || vp.height <= 0) return;
+    let k = Math.min((vp.width - 20) / box.w, (vp.height - 20) / box.h);
     k = Math.min(MAX_K, Math.max(MIN_K, k));
-    camRef.current = {
-      k,
-      tx: r.width / 2 - box.cx * k,
-      ty: r.height / 2 - box.cy * k,
-    };
+    const { tx, ty } = snapViewport(vp.width / 2 - box.cx * k, vp.height / 2 - box.cy * k);
+    camRef.current = { k, tx, ty };
     if (animated) easeWorld();
     else applyWorld();
   };
@@ -183,10 +205,8 @@ export function FamilyTreeScene({
   // viewport: centered, largest scale with nothing cut off. Used by both the
   // open view and the reset button.
   const fitToViewport = (animated: boolean) => {
-    const el = rootRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    if (r.width <= 0 || r.height <= 0) return;
+    const vp = vpRef.current;
+    if (vp.width <= 0 || vp.height <= 0) return;
     let l = Infinity;
     let t = Infinity;
     let R = -Infinity;
@@ -202,12 +222,12 @@ export function FamilyTreeScene({
     const PAD = 36;
     const w = R - l + PAD * 2;
     const h = B - t + PAD * 2;
-    const k = Math.min(MAX_K, (r.width - 16) / w, (r.height - 16) / h);
-    camRef.current = {
-      k,
-      tx: r.width / 2 - ((l + R) / 2) * k,
-      ty: r.height / 2 - ((t + B) / 2) * k,
-    };
+    const k = Math.min(MAX_K, (vp.width - 16) / w, (vp.height - 16) / h);
+    const { tx, ty } = snapViewport(
+      vp.width / 2 - ((l + R) / 2) * k,
+      vp.height / 2 - ((t + B) / 2) * k,
+    );
+    camRef.current = { k, tx, ty };
     if (animated) easeWorld();
     else applyWorld();
   };
@@ -221,17 +241,27 @@ export function FamilyTreeScene({
   useLayoutEffect(() => {
     // open on the fitted view of the whole tree (retry once if the viewport
     // hasn't measured yet)
-    if (rootRef.current) {
-      const r = rootRef.current.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) fitToViewport(false);
-      else requestAnimationFrame(() => fitToViewport(false));
+    measureViewport();
+    if (rootRef.current && vpRef.current.width > 0 && vpRef.current.height > 0) {
+      fitToViewport(false);
+    } else {
+      requestAnimationFrame(() => {
+        measureViewport();
+        fitToViewport(false);
+      });
     }
+    const ro = new ResizeObserver(() => {
+      measureViewport();
+      if (!gestureRef.current.points.size) fitToViewport(false);
+    });
+    if (rootRef.current) ro.observe(rootRef.current);
     const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(rm.matches);
     const onChange = () => setReducedMotion(rm.matches);
     rm.addEventListener?.("change", onChange);
     const t = window.setTimeout(() => setGrown(true), 120);
     return () => {
+      ro.disconnect();
       window.clearTimeout(t);
       rm.removeEventListener?.("change", onChange);
     };
@@ -239,14 +269,16 @@ export function FamilyTreeScene({
   }, []);
 
   // ---------- auto degrade ----------
+  // One-shot probe: measure FPS for ~2s after mount, then STOP. The old loop
+  // ran requestAnimationFrame forever even while idle, keeping the whole scene
+  // continuously busy (battery drain + stutter on phones).
   useEffect(() => {
     if (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
       setDegraded(true);
       return;
     }
     let frames = 0;
-    let t0 = performance.now();
-    let lowCount = 0;
+    const t0 = performance.now();
     let killed = false;
     const tick = () => {
       if (killed) return;
@@ -254,61 +286,69 @@ export function FamilyTreeScene({
       const now = performance.now();
       if (now - t0 >= 2000) {
         const fps = frames / ((now - t0) / 1000);
-        frames = 0;
-        t0 = now;
-        if (fps < 40) {
-          lowCount++;
-          if (lowCount >= 2) {
-            setDegraded(true);
-            return;
-          }
-        } else lowCount = 0;
+        if (fps < 40) setDegraded(true);
+        return;
       }
-      rafRef.current = requestAnimationFrame(tick);
+      fpsRafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    fpsRafRef.current = requestAnimationFrame(tick);
     return () => {
       killed = true;
-      cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(fpsRafRef.current);
     };
   }, []);
 
-  // ---------- pointer parallax (faces desktop) ----------
+  // ---------- pointer parallax (desktop only, idle only) ----------
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === "touch") return;
-      const r = el.getBoundingClientRect();
+      const vp = vpRef.current;
+      if (vp.width <= 0) return;
       parTarget.current = {
-        x: ((e.clientX - r.left) / r.width - 0.5) * 2,
-        y: ((e.clientY - r.top) / r.height - 0.5) * 2,
+        x: ((e.clientX - vp.left) / vp.width - 0.5) * 2,
+        y: ((e.clientY - vp.top) / vp.height - 0.5) * 2,
       };
     };
     const loop = () => {
+      // skip work while a pan/pinch gesture is active or the tab is hidden
+      if (gestureRef.current.points.size || document.hidden) {
+        parRafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       const p = parRef.current;
-      p.x += (parTarget.current.x - p.x) * 0.08;
-      p.y += (parTarget.current.y - p.y) * 0.08;
+      const dx = parTarget.current.x - p.x;
+      const dy = parTarget.current.y - p.y;
+      p.x += dx * 0.08;
+      p.y += dy * 0.08;
       const wrap = bgWrapRef.current;
-      if (wrap) wrap.style.transform = `translate3d(${p.x * 10}px, ${p.y * 8}px, 0)`;
-      rafRef.current = requestAnimationFrame(loop);
+      if (wrap && (Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001)) {
+        wrap.style.transform = `translate3d(${(p.x * 10).toFixed(2)}px, ${(p.y * 8).toFixed(2)}px, 0)`;
+      }
+      parRafRef.current = requestAnimationFrame(loop);
     };
     el.addEventListener("pointermove", onMove);
-    if (window.matchMedia("(pointer: fine)").matches && !reducedMotion && !degraded) {
-      rafRef.current = requestAnimationFrame(loop);
+    if (
+      window.matchMedia("(pointer: fine)").matches &&
+      !window.matchMedia("(pointer: coarse)").matches &&
+      !reducedMotion &&
+      !degraded
+    ) {
+      parRafRef.current = requestAnimationFrame(loop);
     }
     return () => {
       el.removeEventListener("pointermove", onMove);
-      cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(parRafRef.current);
     };
   }, [reducedMotion, degraded]);
 
   // ---------- pans / pinch / taps ----------
   const getPoints = (e: ReactPointerEvent) => {
-    const r = rootRef.current!.getBoundingClientRect();
+    const vp = vpRef.current;
     const map = gestureRef.current.points;
     const arr: Vec[] = [];
-    map.forEach((p) => arr.push({ x: p.x - r.left, y: p.y - r.top }));
+    map.forEach((p) => arr.push({ x: p.x - vp.left, y: p.y - vp.top }));
     return arr;
   };
 
@@ -323,7 +363,7 @@ export function FamilyTreeScene({
       return;
     }
     const g = gestureRef.current;
-    const r = rootRef.current!.getBoundingClientRect();
+    if (e.pointerType === "mouse") measureViewport();
     g.points.set(e.pointerId, { x: e.clientX, y: e.clientY });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     g.mode = g.points.size === 2 ? "pinch" : "pan";
@@ -340,7 +380,6 @@ export function FamilyTreeScene({
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const g = gestureRef.current;
     if (!g.points.has(e.pointerId)) return;
-    const r = rootRef.current!.getBoundingClientRect();
     const prev = g.points.get(e.pointerId)!;
     g.points.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y) > 4) g.moved = true;
@@ -352,11 +391,11 @@ export function FamilyTreeScene({
       const ratio = dist / (g.startDist || 1);
       const k = Math.min(MAX_K, Math.max(MIN_K, g.startCam.k * ratio));
       const base = g.startCam;
-      camRef.current = {
-        k,
-        tx: mid.x - (g.startMid.x - base.tx) * (k / base.k),
-        ty: mid.y - (g.startMid.y - base.ty) * (k / base.k),
-      };
+      const { tx, ty } = snapViewport(
+        mid.x - (g.startMid.x - base.tx) * (k / base.k),
+        mid.y - (g.startMid.y - base.ty) * (k / base.k),
+      );
+      camRef.current = { k, tx, ty };
       applyWorld();
     } else if (g.mode === "pan") {
       const dx = e.clientX - prev.x;
@@ -376,9 +415,9 @@ export function FamilyTreeScene({
     g.points.delete(e.pointerId);
     if (g.points.size === 0) {
       const now = performance.now();
-      const r = rootRef.current!.getBoundingClientRect();
-      const sx = e.clientX - r.left;
-      const sy = e.clientY - r.top;
+      const vp = vpRef.current;
+      const sx = e.clientX - vp.left;
+      const sy = e.clientY - vp.top;
       if (
         g.mode === "pan" &&
         !g.moved &&
@@ -402,13 +441,14 @@ export function FamilyTreeScene({
 
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const r = rootRef.current!.getBoundingClientRect();
-    const sx = e.clientX - r.left;
-    const sy = e.clientY - r.top;
+    const vp = vpRef.current;
+    const sx = e.clientX - vp.left;
+    const sy = e.clientY - vp.top;
     const c = camRef.current;
     const ratio = Math.exp(-e.deltaY * 0.0015);
     const k = Math.min(MAX_K, Math.max(MIN_K, c.k * ratio));
-    camRef.current = { k, tx: sx - (sx - c.tx) * (k / c.k), ty: sy - (sy - c.ty) * (k / c.k) };
+    const { tx, ty } = snapViewport(sx - (sx - c.tx) * (k / c.k), sy - (sy - c.ty) * (k / c.k));
+    camRef.current = { k, tx, ty };
     if (worldRef.current) worldRef.current.style.transition = "none";
     applyWorld();
   };
@@ -469,7 +509,11 @@ export function FamilyTreeScene({
   const particles = useMemo(() => {
     if (reducedMotion) return [];
     const rand = seededRandom("particles");
-    const count = Math.min(24, 14 + rand.int(0, 10));
+    // far fewer on touch devices: every animated particle is a composited
+    // layer, and phones / small views create the "بتهنج" jank
+    const count = coarseRef.current
+      ? Math.min(8, 5 + rand.int(0, 3))
+      : Math.min(24, 14 + rand.int(0, 10));
     return Array.from({ length: count }, (_, i) => ({
       id: i,
       x: rand.range(20, layout.W - 20),
@@ -527,7 +571,7 @@ export function FamilyTreeScene({
         style={{ width: layout.W, height: layout.H, transformOrigin: "0 0" }}
       >
         {/* parallax backdrop */}
-        <div ref={bgWrapRef} className="absolute inset-0 will-change-transform">
+        <div ref={bgWrapRef} className="absolute inset-0">
           <svg width={layout.W} height={layout.H} aria-hidden="true">
             <SceneBackground night={night} par={{ x: 0, y: 0 }} w={layout.W} />
             <defs>
@@ -638,7 +682,7 @@ export function FamilyTreeScene({
                 }
               />
             ))}
-            <span className="bird" />
+            {!coarseRef.current && <span className="bird" />}
           </div>
         )}
       </div>

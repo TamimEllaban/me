@@ -114,7 +114,7 @@ export const PersonOrnament = memo(function PersonOrnament({
           )}
         </span>
 
-        <span className="mt-1 max-w-[7.5rem] rounded-md bg-[#fff8ea]/95 px-1.5 py-0.5 text-center shadow-sm ring-1 ring-black/5 backdrop-blur-sm [line-clamp:2]">
+        <span className="mt-1 max-w-[7.5rem] rounded-md bg-[#fff8ea] px-1.5 py-0.5 text-center shadow-sm ring-1 ring-black/5 [line-clamp:2]">
           <b className="block font-display text-[15px] font-semibold leading-tight text-stone-900">
             {name}
           </b>

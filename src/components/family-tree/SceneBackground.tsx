@@ -60,20 +60,19 @@ export const SceneBackground = memo(function SceneBackground({
       </g>
       <circle cx={cx} cy={150} r={260} fill="url(#sunGlow)" opacity={0.8} />
 
-      {/* far hills */}
+      {/* far hills — no gaussian blur: the filter applies over the full 9000px
+          scene width, fails on small mobile GPUs and makes parts disappear */}
       <path
         d={HILL_BACK(w)}
         fill={hillBack}
         opacity={0.55}
         transform={`translate(${par.x * 10} ${par.y * 8})`}
-        filter="url(#softBlur)"
       />
       <path
         d={HILL_FRONT(w)}
         fill={hillFront}
         opacity={0.8}
         transform={`translate(${par.x * 16} ${par.y * 12})`}
-        filter="url(#softBlur)"
       />
 
       {/* foreground grass */}
@@ -98,10 +97,6 @@ export const SceneBackground = memo(function SceneBackground({
           ))}
         </g>
       )}
-
-      <filter id="softBlur">
-        <feGaussianBlur stdDeviation="6" />
-      </filter>
     </g>
   );
 });
