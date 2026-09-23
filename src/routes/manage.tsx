@@ -29,8 +29,8 @@ import {
   setFamilyPhoto,
   updateMemoryEntry,
   updateRelativeEntry,
-  uploadFamilyPhoto,
 } from "@/lib/gate.functions";
+import { uploadPhotoDirect } from "@/lib/photo-upload";
 
 async function loadManage() {
   const [home, memories, relatives] = await Promise.all([
@@ -121,6 +121,7 @@ function PhotoFlow({
   onPhotoReady: (url: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [busyUpload, setBusyUpload] = useState(false);
@@ -132,11 +133,12 @@ function PhotoFlow({
   const [linkUrl, setLinkUrl] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  async function handleFile(file: File) {
+  async function handleFile(f: File) {
     try {
-      const dataUrl = await resizeToDataUrl(file);
+      const dataUrl = await resizeToDataUrl(f);
+      setFile(f);
       setPreview(dataUrl);
-      setName(file.name.replace(/\.[^.]+$/, ""));
+      setName(f.name.replace(/\.[^.]+$/, ""));
       setUploadError(null);
       setPlaced(null);
     } catch (err) {
@@ -149,13 +151,14 @@ function PhotoFlow({
     setBusyUpload(true);
     setUploadError(null);
     setPlaced(null);
-    const result = await uploadFamilyPhoto({ data: { source: preview, name } });
+    const result = file ? await uploadPhotoDirect(file, name) : null;
     setBusyUpload(false);
     if (!result) {
       setUploadError("The photo didn't upload — please try again in a moment.");
       return;
     }
-    onPhotoReady(result.url);
+    onPhotoReady(result);
+    setFile(null);
     setPreview(null);
     setName("");
   }

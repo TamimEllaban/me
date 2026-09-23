@@ -15,7 +15,12 @@ import {
   updateRelative,
   updateRelativeImage,
 } from "./db";
-import { deleteFamilyImage, listFamilyImages, uploadFamilyImage } from "./cloudinary.server";
+import {
+  createFamilyUploadTicket,
+  deleteFamilyImage,
+  listFamilyImages,
+  uploadFamilyImage,
+} from "./cloudinary.server";
 import { getChild, getLetters, getMemories, getProfiles, getRelatives } from "./world-data.server";
 import mediaCatalog from "./media-catalog.json";
 
@@ -154,6 +159,16 @@ export const uploadFamilyPhoto = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireUnlocked();
     return await uploadFamilyImage(data.source, data.name);
+  });
+
+// Issues a one-time signature so the browser can POST the photo bytes
+// straight to Cloudinary. This skips our server entirely, so huge photos
+// never hit Vercel's request-body size limit.
+export const getFamilyUploadTicket = createServerFn({ method: "POST" })
+  .inputValidator(({ name }: { name: string }) => ({ name }))
+  .handler(async ({ data }) => {
+    await requireUnlocked();
+    return createFamilyUploadTicket(data.name);
   });
 
 export const deleteFamilyPhoto = createServerFn({ method: "POST" })

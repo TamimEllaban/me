@@ -23,12 +23,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  addRelativeEntry,
-  deleteRelativeEntry,
-  updateRelativeEntry,
-  uploadFamilyPhoto,
-} from "@/lib/gate.functions";
+import { addRelativeEntry, deleteRelativeEntry, updateRelativeEntry } from "@/lib/gate.functions";
+import { uploadPhotoDirect } from "@/lib/photo-upload";
 
 export type RelativeLike = {
   id: string;
@@ -89,17 +85,9 @@ export function RelativeFormDialog({
     setUploading(true);
     setUploadMsg(null);
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("read failed"));
-        reader.readAsDataURL(file);
-      });
-      const res = await uploadFamilyPhoto({
-        data: { source: dataUrl, name: file.name || "relative-photo" },
-      });
-      if (res?.url) {
-        setImage(res.url);
+      const res = await uploadPhotoDirect(file);
+      if (res) {
+        setImage(res);
         setUploadMsg("تم رفع الصورة ✓");
       } else {
         setUploadMsg("حصلت مشكلة في الرفع — جرب تاني.");

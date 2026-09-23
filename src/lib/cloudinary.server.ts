@@ -4,6 +4,7 @@
 // functions that use the signed SDK. Everything here returns null/false when
 // Cloudinary is not configured so the rest of the app degrades gracefully.
 
+import { createHash } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 
 function client() {
@@ -23,6 +24,45 @@ function client() {
 }
 
 const BASE_FOLDER = "tamims-world";
+
+// Returns everything a browser needs to upload a photo straight to Cloudinary
+// (bypassing Vercel's request-body size limit). The signature is the only thing
+// signed here — the API secret never reaches the client.
+export function createFamilyUploadTicket(name: string): {
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  publicId: string;
+  transformation: string;
+} | null {
+  const cloudName = process.env["CLOUDINARY_CLOUD_NAME"];
+  const apiKey = process.env["CLOUDINARY_API_KEY"];
+  const apiSecret = process.env["CLOUDINARY_API_SECRET"];
+  if (!cloudName || !apiKey || !apiSecret) return null;
+  const safe =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "photo";
+  const publicId = `${safe}-${Date.now()}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const transformation = "c_limit,q_auto:good,w_1600";
+  const params: Record<string, string> = {
+    folder: BASE_FOLDER,
+    public_id: publicId,
+    timestamp: String(timestamp),
+    transformation,
+  };
+  const query = Object.keys(params)
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join("&");
+  const signature = createHash("sha1").update(`${query}${apiSecret}`).digest("hex");
+  return { cloudName, apiKey, timestamp, signature, folder: BASE_FOLDER, publicId, transformation };
+}
 
 // Accepts a base64 data URL (data:image/...;base64,...) or a raw public URL.
 export async function uploadFamilyImage(
