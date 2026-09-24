@@ -540,7 +540,6 @@ export function FamilyTreeScene({
     <div
       ref={rootRef}
       className={`scene-viewport relative w-full touch-none select-none overflow-hidden rounded-2xl border border-border bg-tree-paper shadow-keepsake ${noFx ? "no-effects" : ""} ${night ? "scene-night" : ""}`}
-      style={{ height: "min(74svh, 820px)", minHeight: 420 }}
       dir="rtl"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

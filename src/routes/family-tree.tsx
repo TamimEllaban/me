@@ -1,12 +1,22 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo, useState } from "react";
-import { List, Trees } from "lucide-react";
+import { LayoutGrid, List, Trees } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageIntro, WorldShell } from "@/components/world-shell";
 import { RelativeFormDialog, type RelativeLike } from "@/components/relative-editor";
+import { FamilyTreeCards } from "@/components/family-tree/FamilyTreeCards";
 import { FamilyTreeList } from "@/components/family-tree/FamilyTreeList";
 import { buildFamilyData } from "@/lib/family-data";
 import { getFamilyData } from "@/lib/gate.functions";
+
+type FamilyTreeView = "scene" | "cards" | "list";
+
+function initialView(): FamilyTreeView {
+  if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+    return "cards";
+  }
+  return "scene";
+}
 
 export const Route = createFileRoute("/family-tree")({
   loader: () => getFamilyData(),
@@ -28,8 +38,7 @@ const FamilyTreeScene = lazy(() => import("@/components/family-tree/FamilyTreeSc
 function SceneSkeleton() {
   return (
     <div
-      className="relative mx-auto w-full overflow-hidden rounded-2xl border border-border bg-tree-paper shadow-keepsake"
-      style={{ height: "min(74svh, 820px)", minHeight: 420 }}
+      className="scene-skeleton relative w-full overflow-hidden rounded-2xl border border-border bg-tree-paper shadow-keepsake"
       aria-hidden="true"
     >
       <div className="absolute inset-0 animate-pulse bg-gradient-to-b from-sky-200/60 via-emerald-50/40 to-amber-50/60" />
@@ -54,44 +63,57 @@ function SceneSkeleton() {
 function FamilyTreePage() {
   const { child, relatives } = Route.useLoaderData();
   const router = useRouter();
-  const [view, setView] = useState<"scene" | "list">("scene");
+  const [view, setView] = useState<FamilyTreeView>(initialView);
   const data = useMemo(() => buildFamilyData(relatives), [relatives]);
   const refresh = () => {
     router.invalidate();
   };
   const relativesList = relatives as RelativeLike[];
 
+  const tabs: { id: FamilyTreeView; label: string; icon: typeof Trees }[] = [
+    { id: "scene", label: "الشجرة", icon: Trees },
+    { id: "cards", label: "الكروت", icon: LayoutGrid },
+    { id: "list", label: "القائمة", icon: List },
+  ];
+
   return (
     <WorldShell>
       <PageIntro
         eyebrow="Where you come from"
         title="Our family tree"
-        text="شجرة حيّة بتنمو من الجذور لحد التاج: تميم في النور فوق، وبابا وماما، والجدود، والعمام والخالات، وأولادهم — كل واحد منّا مخضوب على فرع أو جذر. اضغط أي صورة تشوف بطاقتها، وحرّك الشاشة أو استخدم الإشارة +/− عشان تنشوف مكتبنا كلّه."
+        text="شجرة حيّة بتنمو من الجذور لحد التاج: تميم في النور فوق، وبابا وماما، والجدود، والعمام والخالات، وأولادهم — كل واحد منّا مخضوب على فرع أو جذر. اضغط أي صورة تشوف بطاقتها. جرب طريقة العرض اللي تناسبك: الشجرة الكبيرة للموبيل والديسكتوب، أو الكروت، أو القائمة."
       />
 
-      <div className="mx-auto mt-1 flex w-full max-w-3xl items-center justify-between px-5 sm:px-8">
-        <span className="text-xs text-muted-foreground">
-          شريط التحكم يعمل على الكاميرا — إعادة ضبط ⌂
-        </span>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => setView((v) => (v === "scene" ? "list" : "scene"))}
-        >
-          {view === "scene" ? (
-            <>
-              <List className="size-4" /> عرض القائمة
-            </>
-          ) : (
-            <>
-              <Trees className="size-4" /> عرض الشجرة
-            </>
-          )}
-        </Button>
+      <div className="mx-auto mt-1 flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 sm:px-8">
+        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-soft">
+          {tabs.map(({ id, label, icon: Icon }) => {
+            const active = view === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setView(id)}
+                aria-pressed={active}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 focus-visible:ring-2 focus-visible:ring-primary ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow"
+                    : "text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <Icon className="size-4" /> {label}
+              </button>
+            );
+          })}
+        </div>
+        {view === "scene" && (
+          <span className="text-xs text-muted-foreground">
+            شريط التحكم يعمل على الكاميرا — إعادة ضبط ⌂
+          </span>
+        )}
       </div>
 
-      <div className="mx-auto mt-3 w-full max-w-3xl px-5 sm:px-8">
-        {view === "scene" ? (
+      {view === "scene" ? (
+        <div className="family-tree-fullbleed mt-3">
           <Suspense fallback={<SceneSkeleton />}>
             <FamilyTreeScene
               data={data}
@@ -100,15 +122,28 @@ function FamilyTreePage() {
               onDone={refresh}
             />
           </Suspense>
-        ) : (
-          <FamilyTreeList
-            data={data}
-            relatives={relativesList}
-            onDone={refresh}
-            onBack={() => setView("scene")}
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div
+          className={`mx-auto mt-3 w-full px-5 sm:px-8 ${view === "cards" ? "max-w-5xl" : "max-w-3xl"}`}
+        >
+          {view === "cards" ? (
+            <FamilyTreeCards
+              data={data}
+              relatives={relativesList}
+              onDone={refresh}
+              onBack={() => setView("scene")}
+            />
+          ) : (
+            <FamilyTreeList
+              data={data}
+              relatives={relativesList}
+              onDone={refresh}
+              onBack={() => setView("scene")}
+            />
+          )}
+        </div>
+      )}
 
       <div className="mx-auto mt-4 flex max-w-3xl items-center justify-between gap-3 px-5 pb-4 sm:px-8">
         <p className="text-xs leading-5 text-muted-foreground">

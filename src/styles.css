@@ -402,6 +402,36 @@
 
 /* ---------- Illustrated family tree scene ---------- */
 
+.scene-viewport,
+.scene-skeleton {
+  height: min(72svh, 760px);
+  min-height: 420px;
+}
+@media (min-width: 1024px) {
+  .scene-viewport,
+  .scene-skeleton {
+    height: min(84svh, 940px);
+    min-height: 560px;
+  }
+}
+
+/* On very wide (laptop / desktop / TV) screens the tree breaks out of the
+   content column and fills almost the whole viewport width. */
+.family-tree-fullbleed {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: 1.25rem;
+}
+@media (min-width: 1280px) {
+  .family-tree-fullbleed {
+    max-width: none;
+    margin-inline: calc((100vw - 72rem) / -2);
+    padding-inline: max(0.75rem, 1.5vw);
+    overflow-x: clip;
+  }
+}
+
 .scene-viewport {
   font-family: var(--font-body, inherit);
   background: var(--tree-paper);
