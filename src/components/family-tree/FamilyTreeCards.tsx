@@ -18,14 +18,14 @@ function hasPhoto(relative: RelativeLike | undefined): boolean {
 
 /** Circular photo or an initial-letter fallback tile. */
 function Avatar({ person, className }: { person: FamilyPerson; className?: string }) {
-  const size = className ?? "size-16 sm:size-20";
+  const size = className ?? "size-14 sm:size-16";
   if (hasPhoto(person.relative)) {
     return (
       <img
         src={person.relative.image}
         alt=""
-        width={80}
-        height={80}
+        width={72}
+        height={72}
         loading="lazy"
         className={`${size} rounded-full object-cover ring-2 ring-[#caa06b] ring-offset-2 ring-offset-card shadow-sm`}
       />
@@ -33,7 +33,7 @@ function Avatar({ person, className }: { person: FamilyPerson; className?: strin
   }
   return (
     <span
-      className={`${size} grid place-items-center rounded-full bg-gradient-to-br from-green-50 to-emerald-200 font-display text-2xl font-semibold text-emerald-900 ring-2 ring-[#caa06b] ring-offset-2 ring-offset-card`}
+      className={`${size} grid place-items-center rounded-full bg-gradient-to-br from-green-50 to-emerald-200 font-display text-xl font-semibold text-emerald-900 ring-2 ring-[#caa06b] ring-offset-2 ring-offset-card`}
     >
       {person.name.trim().charAt(0)}
     </span>
@@ -47,17 +47,17 @@ function PersonCard({ person, onOpen }: { person: FamilyPerson; onOpen: (id: str
       type="button"
       onClick={() => onOpen(person.id)}
       aria-label={`${person.role} ${person.name}`}
-      className="flex h-full flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3.5 text-center shadow-soft transition hover:border-primary/50 active:scale-[.98] focus-visible:ring-2 focus-visible:ring-primary"
+      className="flex h-full w-full flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-2.5 text-center shadow-soft transition hover:border-primary/50 active:scale-[.97] focus-visible:ring-2 focus-visible:ring-primary"
     >
       <Avatar person={person} />
-      <b className="font-display text-[15px] font-semibold leading-tight text-foreground">
+      <b className="font-display text-[13px] font-semibold leading-tight text-foreground line-clamp-1">
         {person.name}
       </b>
-      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold text-primary">
+      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
         {person.role}
       </span>
       {person.relative.fact && (
-        <span className="line-clamp-2 text-[0.72rem] leading-4 text-muted-foreground">
+        <span className="line-clamp-2 text-[0.65rem] leading-4 text-muted-foreground">
           {person.relative.fact}
         </span>
       )}
@@ -69,25 +69,25 @@ function PersonCard({ person, onOpen }: { person: FamilyPerson; onOpen: (id: str
 function CoupleCard({ couple, onOpen }: { couple: FamilyCouple; onOpen: (id: string) => void }) {
   const pair = [couple.person, ...(couple.spouse ? [couple.spouse] : [])];
   return (
-    <div className="col-span-full grid gap-2 rounded-2xl border border-border bg-card/60 p-3 shadow-soft sm:grid-cols-2">
+    <div className="col-span-full grid gap-2 rounded-xl border border-border bg-card/60 p-2.5 shadow-soft sm:grid-cols-2">
       {pair.map((p, i) => (
         <button
           key={p.id}
           type="button"
           onClick={() => onOpen(p.id)}
           aria-label={`${p.role} ${p.name}`}
-          className={`flex items-center gap-3 rounded-xl p-2.5 text-center transition hover:bg-secondary/50 active:scale-[.99] focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`flex items-center gap-2.5 rounded-lg p-2 text-center transition hover:bg-secondary/50 active:scale-[.99] focus-visible:ring-2 focus-visible:ring-primary ${
             pair.length === 1 ? "mx-auto" : ""
           }`}
         >
-          <Avatar person={p} className="size-14 rounded-full object-cover" />
-          <span className="min-w-0 flex-1">
-            <b className="block truncate font-display text-[15px] font-semibold text-foreground">
+          <Avatar person={p} className="size-12 sm:size-14 rounded-full object-cover shrink-0" />
+          <span className="min-w-0 flex-1 text-right">
+            <b className="block truncate font-display text-[14px] font-semibold text-foreground">
               {p.name}
             </b>
             <span className="mt-0.5 block text-xs text-muted-foreground">{p.role}</span>
             {p.relative.fact && (
-              <span className="mt-0.5 block line-clamp-1 text-[0.7rem] text-muted-foreground/80">
+              <span className="mt-0.5 block line-clamp-1 text-[0.65rem] text-muted-foreground/80">
                 {p.relative.fact}
               </span>
             )}
@@ -127,7 +127,7 @@ function Section({
 }
 
 function CardGrid({ children }: { children: ReactNode }) {
-  return <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">{children}</ul>;
+  return <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">{children}</ul>;
 }
 
 function DescendantCards({
@@ -139,9 +139,9 @@ function DescendantCards({
 }) {
   if (kids.length === 0) return null;
   return (
-    <div className="mt-2 space-y-2 rounded-xl border border-dashed border-border/70 bg-background/40 p-3">
-      <p className="text-center text-[0.7rem] font-semibold text-muted-foreground">— الأبناء —</p>
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+    <div className="mt-2 space-y-2 rounded-lg border border-dashed border-border/70 bg-background/40 p-2">
+      <p className="text-center text-[0.65rem] font-semibold text-muted-foreground">— الأبناء —</p>
+      <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
         {kids.map((c) => (
           <li key={c.id}>
             <PersonCard person={c} onOpen={onOpen} />
@@ -166,21 +166,21 @@ function BranchSection({ branch, onOpen }: { branch: FamilyBranch; onOpen: (id: 
   );
 
   return (
-    <section className="rounded-2xl border border-border bg-card/50 p-4 shadow-soft sm:p-5">
-      <h3 className="text-center font-display text-xl font-semibold text-foreground">
+    <section className="rounded-2xl border border-border bg-card/50 p-3 shadow-soft sm:p-4">
+      <h3 className="text-center font-display text-lg font-semibold text-foreground sm:text-xl">
         {branch.title}
       </h3>
       <p className="mt-0.5 text-center text-xs text-muted-foreground">{branch.subtitle}</p>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-3 space-y-3">
         <div>
-          <h4 className="mb-2 text-center text-sm font-semibold text-muted-foreground">الأجداد</h4>
+          <h4 className="mb-2 text-center text-xs font-semibold text-muted-foreground">الأجداد</h4>
           <CoupleCard couple={branch.grandparents} onOpen={onOpen} />
         </div>
 
         {roots.length > 0 && (
           <div>
-            <h4 className="mb-2 text-center text-sm font-semibold text-muted-foreground">
+            <h4 className="mb-2 text-center text-xs font-semibold text-muted-foreground">
               إخوة الأجداد (الجذور)
             </h4>
             <CardGrid>
@@ -195,13 +195,13 @@ function BranchSection({ branch, onOpen }: { branch: FamilyBranch; onOpen: (id: 
 
         {greatFamilies.length > 0 && (
           <div>
-            <h4 className="mb-2 text-center text-sm font-semibold text-muted-foreground">
+            <h4 className="mb-2 text-center text-xs font-semibold text-muted-foreground">
               أولاد الجذور
             </h4>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {greatFamilies.map((g) => (
                 <li key={g.person.id}>
-                  <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                  <div className="rounded-lg border border-border/70 bg-background/60 p-2.5">
                     <CoupleCard
                       couple={
                         g.spouse ? { person: g.person, spouse: g.spouse } : { person: g.person }
@@ -218,14 +218,14 @@ function BranchSection({ branch, onOpen }: { branch: FamilyBranch; onOpen: (id: 
 
         {branch.children.length > 0 && (
           <div>
-            <h4 className="mb-2 text-center text-sm font-semibold text-muted-foreground">
+            <h4 className="mb-2 text-center text-xs font-semibold text-muted-foreground">
               الأبناء
             </h4>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {branch.children.map((child) => (
                 <li
                   key={child.couple.person.id}
-                  className="rounded-xl border border-border/70 bg-background/60 p-3"
+                  className="rounded-lg border border-border/70 bg-background/60 p-2.5"
                 >
                   <CoupleCard couple={child.couple} onOpen={onOpen} />
                   <DescendantCards kids={child.children} onOpen={onOpen} />
@@ -258,11 +258,11 @@ export function FamilyTreeCards({
   const openPerson = openId ? relatives.find((r) => r.id === openId) : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4" dir="rtl">
+    <div className="mx-auto w-full space-y-3" dir="rtl">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 font-display text-2xl">
-          <LayoutGrid className="size-5 text-primary" />
-          شجرة العائلة — عرض الكروت
+        <h2 className="flex items-center gap-2 font-display text-lg sm:text-2xl">
+          <LayoutGrid className="size-4 text-primary sm:size-5" />
+          شجرة العائلة — الكروت
         </h2>
         <Button size="sm" variant="secondary" onClick={onBack}>
           <Trees className="size-4" /> عرض الشجرة
@@ -270,20 +270,24 @@ export function FamilyTreeCards({
       </div>
 
       {/* Crown — Tamim */}
-      <div className="mx-auto flex max-w-md flex-col items-center rounded-2xl border border-primary/40 bg-gradient-to-tr from-primary/10 to-accent/10 px-6 py-4 text-center shadow-soft">
-        <span className="font-display text-2xl font-semibold text-foreground">{data.rootName}</span>
+      <div className="mx-auto flex max-w-xs flex-col items-center rounded-2xl border border-primary/40 bg-gradient-to-tr from-primary/10 to-accent/10 px-4 py-3 text-center shadow-soft">
+        <span className="font-display text-xl font-semibold text-foreground sm:text-2xl">
+          {data.rootName}
+        </span>
         <span className="mt-0.5 text-xs text-muted-foreground">{data.rootSubtitle}</span>
       </div>
 
       {/* Parents */}
       {data.parents && (
-        <Section
-          title="الأهل"
-          subtitle="بابا وماما"
-          icon={<Heart className="size-4 text-primary" />}
-        >
-          <CoupleCard couple={data.parents} onOpen={setOpenId} />
-        </Section>
+        <section className="rounded-2xl border border-border bg-card/50 p-3 shadow-soft sm:p-4">
+          <h3 className="flex items-center justify-center gap-2 text-center font-display text-base font-semibold text-foreground sm:text-lg">
+            <Heart className="size-4 text-primary" />
+            الأهل — بابا وماما
+          </h3>
+          <div className="mt-2">
+            <CoupleCard couple={data.parents} onOpen={setOpenId} />
+          </div>
+        </section>
       )}
 
       {/* Two branches */}

@@ -402,32 +402,55 @@
 
 /* ---------- Illustrated family tree scene ---------- */
 
+/* Mobile / small screens */
 .scene-viewport,
 .scene-skeleton {
-  height: min(72svh, 760px);
-  min-height: 420px;
+  height: min(70svh, 680px);
+  min-height: 380px;
 }
-@media (min-width: 1024px) {
+
+/* Tablet */
+@media (min-width: 768px) {
   .scene-viewport,
   .scene-skeleton {
-    height: min(84svh, 940px);
-    min-height: 560px;
+    height: min(78svh, 860px);
+    min-height: 500px;
   }
 }
 
-/* On very wide (laptop / desktop / TV) screens the tree breaks out of the
-   content column and fills almost the whole viewport width. */
+/* Laptop / desktop — fill most of the viewport height */
+@media (min-width: 1024px) {
+  .scene-viewport,
+  .scene-skeleton {
+    height: calc(100svh - 10rem);
+    min-height: 600px;
+    max-height: 1100px;
+  }
+}
+
+/* TV / ultra-wide — a bit more space */
+@media (min-width: 1600px) {
+  .scene-viewport,
+  .scene-skeleton {
+    height: calc(100svh - 8rem);
+    max-height: 1400px;
+  }
+}
+
+/* Full-bleed wrapper — on mobile keeps normal padding,
+   on large screens stretches edge-to-edge (100vw). */
 .family-tree-fullbleed {
   margin-inline: auto;
   width: 100%;
   max-width: 72rem;
-  padding-inline: 1.25rem;
+  padding-inline: 1rem;
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .family-tree-fullbleed {
     max-width: none;
+    width: 100vw;
     margin-inline: calc((100vw - 72rem) / -2);
-    padding-inline: max(0.75rem, 1.5vw);
+    padding-inline: max(0.5rem, 1vw);
     overflow-x: clip;
   }
 }

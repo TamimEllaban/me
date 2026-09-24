@@ -125,7 +125,9 @@ function FamilyTreePage() {
         </div>
       ) : (
         <div
-          className={`mx-auto mt-3 w-full px-5 sm:px-8 ${view === "cards" ? "max-w-5xl" : "max-w-3xl"}`}
+          className={`mt-3 w-full px-4 sm:px-6 ${
+            view === "cards" ? "mx-auto max-w-2xl lg:max-w-4xl" : "mx-auto max-w-2xl"
+          }`}
         >
           {view === "cards" ? (
             <FamilyTreeCards
