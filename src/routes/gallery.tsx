@@ -1,16 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  ArrowRightLeft,
-  Calendar,
-  Camera,
-  Check,
-  Play,
-  Search,
-  Tag,
-  Video,
-  X,
-} from "lucide-react";
+import { ArrowRightLeft, Calendar, Camera, Check, Play, Search, Tag, Video, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -127,9 +117,7 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
                   <span className="text-[0.68rem] text-muted-foreground/60">بدون تاريخ</span>
                 )}
                 <span>·</span>
-                <span className="font-medium text-primary">
-                  {isVideo ? "فيديو" : "صورة"}
-                </span>
+                <span className="font-medium text-primary">{isVideo ? "فيديو" : "صورة"}</span>
               </div>
             </div>
 

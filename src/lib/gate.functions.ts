@@ -134,10 +134,7 @@ export type GalleryCategory = { name: string; items: GalleryItem[] };
 export const getGalleryData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
   const raw = (mediaCatalog as { items: GalleryItem[] }).items;
-  const [dbItems, overrides] = await Promise.all([
-    loadGalleryItems(),
-    loadGalleryOverrides(),
-  ]);
+  const [dbItems, overrides] = await Promise.all([loadGalleryItems(), loadGalleryOverrides()]);
   const overrideMap = new Map(overrides.map((o) => [o.id, o.category]));
 
   const allRaw: GalleryItem[] = [

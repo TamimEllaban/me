@@ -13,6 +13,7 @@ import {
   Plus,
   Save,
   Sparkles,
+  Sprout,
   Tag,
   Trash2,
   Upload,
@@ -62,12 +63,7 @@ const DEFAULT_GALLERY_CATEGORIES = [
   "00 - زفاف الوالدين",
 ];
 
-const DEFAULT_MEMORY_CATEGORIES = [
-  "Milestones",
-  "Celebrations",
-  "Everyday moments",
-  "Adventures",
-];
+const DEFAULT_MEMORY_CATEGORIES = ["Milestones", "Celebrations", "Everyday moments", "Adventures"];
 
 async function loadManage() {
   const [home, memories, relatives, gallery] = await Promise.all([
@@ -152,9 +148,15 @@ const places = [
     icon: BookOpen,
   },
   {
+    kind: "tree" as const,
+    title: "Family tree person",
+    copy: "Their ornament photo on the branch in the family tree",
+    icon: Sprout,
+  },
+  {
     kind: "relative" as const,
     title: "A relative",
-    copy: "A person's card in the family circle",
+    copy: "A person's card on the Relatives page",
     icon: Users,
   },
 ];
@@ -309,7 +311,7 @@ function PhotoFlow({
           const chosenMemory = memories.find((m) => m.id === targetMemoryId);
           label = `Photo placed on "${chosenMemory?.title || "that memory"}" — it's live now!`;
         }
-      } else if (kind === "relative") {
+      } else if (kind === "tree" || kind === "relative") {
         const res = await setFamilyPhoto({
           data: {
             kind: "relative",
@@ -319,7 +321,10 @@ function PhotoFlow({
         });
         ok = res.ok;
         const chosenRelative = relatives.find((r) => r.id === targetRelativeId);
-        label = `Photo placed on ${chosenRelative?.name || "relative"}'s card — it's live now!`;
+        label =
+          kind === "tree"
+            ? `Photo placed on ${chosenRelative?.name || "that person"}'s ornament — now on the family tree!`
+            : `Photo placed on ${chosenRelative?.name || "relative"}'s card — it's live now!`;
       }
     } catch {
       ok = false;
@@ -358,7 +363,7 @@ function PhotoFlow({
     (kind === "gallery" && isCustomCategory && !customCategoryInput.trim()) ||
     (kind === "memory" && memoryMode === "existing" && !targetMemoryId) ||
     (kind === "memory" && memoryMode === "new" && !newMemoryTitle.trim() && !name.trim()) ||
-    (kind === "relative" && !targetRelativeId);
+    ((kind === "relative" || kind === "tree") && !targetRelativeId);
 
   const actionButtonText = busyPlace
     ? "Placing photo…"
@@ -370,7 +375,9 @@ function PhotoFlow({
           ? memoryMode === "new"
             ? "Create new memory chapter"
             : "Update this memory's photo"
-          : "Place on relative's card";
+          : kind === "tree"
+            ? "Set as their tree ornament"
+            : "Place on relative's card";
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 shadow-soft sm:p-6">
@@ -464,8 +471,8 @@ function PhotoFlow({
         </div>
       </div>
 
-      {/* Destination Grid: 4 Places */}
-      <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Destination Grid: all the pages a photo can live on */}
+      <div className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
         {places.map(({ kind: k, title, copy, icon: Icon }) => (
           <button
             key={k}
@@ -569,8 +576,7 @@ function PhotoFlow({
                           : "border border-dashed border-primary/60 bg-background text-primary hover:bg-primary/10"
                       }`}
                     >
-                      <Plus className="size-3" />
-                      + Custom category
+                      <Plus className="size-3" />+ Custom category
                     </button>
                   </div>
 
@@ -760,9 +766,27 @@ function PhotoFlow({
               </div>
             )}
 
-            {/* RELATIVE DESTINATION */}
-            {kind === "relative" && (
+            {/* RELATIVE / FAMILY-TREE DESTINATION */}
+            {(kind === "relative" || kind === "tree") && (
               <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  {kind === "tree" ? (
+                    <>
+                      <Sprout className="size-4 text-primary" />
+                      Family tree ornament
+                    </>
+                  ) : (
+                    <>
+                      <Users className="size-4 text-primary" />
+                      Relatives page card
+                    </>
+                  )}
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {kind === "tree"
+                    ? "This photo becomes the person's ornament in the family tree — the same photo also shows on their card in the Relatives page."
+                    : "This photo becomes the person's card on the Relatives page — it also updates their ornament in the family tree."}
+                </p>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-xs font-semibold text-muted-foreground">Filter group:</span>
                   {allRelativeGroups.map((g) => (
@@ -783,7 +807,7 @@ function PhotoFlow({
 
                 <div>
                   <label className="text-xs font-semibold" htmlFor="place-relative-select">
-                    Which relative?
+                    {kind === "tree" ? "Which family member?" : "Which relative?"}
                   </label>
                   <select
                     id="place-relative-select"
@@ -995,7 +1019,9 @@ function EditDetails({
           <TabsTrigger value="child">Tamim's page</TabsTrigger>
           <TabsTrigger value="memories">Memory captions</TabsTrigger>
           <TabsTrigger value="relatives">Relative cards</TabsTrigger>
-          <TabsTrigger value="gallery">Gallery category organizer ({galleryItems.length})</TabsTrigger>
+          <TabsTrigger value="gallery">
+            Gallery category organizer ({galleryItems.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="child" className="mt-4 space-y-4">
