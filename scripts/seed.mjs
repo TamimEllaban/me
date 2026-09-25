@@ -124,11 +124,24 @@ await sql`
     name = EXCLUDED.name, birthdate = EXCLUDED.birthdate,
     welcome = EXCLUDED.welcome, hero_image = EXCLUDED.hero_image`;
 
-// Drop the old placeholder memories; the seeded rows below are the real ones.
-await sql`DELETE FROM memories`;
-await sql`DELETE FROM relatives`;
-await sql`DELETE FROM letters`;
-await sql`DELETE FROM profiles`;
+// Refresh the seeded content without ever wiping photos the family uploaded.
+//
+// The old behaviour was `DELETE FROM relatives` (and the same for the other
+// tables) followed by a plain INSERT. Because every INSERT below uses
+// `ON CONFLICT (id) DO UPDATE SET image = EXCLUDED.image`, re-running the seed
+// silently replaced every photo the family had assigned to a person with the
+// bundled default. We now only fill in what is missing: an existing row keeps
+// its own image (and every other edited field) and is left completely alone.
+//
+// Set SEED_RESET=1 to get the old destructive behaviour on purpose.
+const SEED_RESET = process.env.SEED_RESET === "1";
+if (SEED_RESET) {
+  console.warn("[seed] SEED_RESET=1 -> wiping memories/relatives/letters/profiles");
+  await sql`DELETE FROM memories`;
+  await sql`DELETE FROM relatives`;
+  await sql`DELETE FROM letters`;
+  await sql`DELETE FROM profiles`;
+}
 
 const memories = [
   [
@@ -1032,7 +1045,7 @@ for (const rel of relatives) {
     VALUES (${id}, ${name}, ${relationship}, ${group}, ${image}, ${fact}, ${bio}, ${order})
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, relationship = EXCLUDED.relationship, "group" = EXCLUDED."group",
-      image = EXCLUDED.image, fact = EXCLUDED.fact, bio = EXCLUDED.bio,
+      fact = EXCLUDED.fact, bio = EXCLUDED.bio,
       sort_order = EXCLUDED.sort_order`;
 }
 
