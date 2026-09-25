@@ -44,7 +44,8 @@ A thumbnail column backfill is not required for the existing catalog because it 
 - Added `scripts/backfill-video-thumbnails.mjs`. Live result: `scanned: 0`, `fixed: 0`, `alreadyPresent: 0`, `manualActionRequired: 0` because all legacy videos are catalog-backed rather than DB-backed.
 - Added a designed "Thumbnail غير متاح" fallback for genuinely missing source/thumbnail media.
 - Added regression tests proving thumbnail generation never contains `f_mp4` and is idempotent.
-- Public legacy media checks confirmed the corrected URL returns `image/jpeg` and decodes as an image.
+- Public legacy media checks confirmed the corrected URL returns `image/jpeg` and decodes as an image. Existing image delivery also returned HTTP 200 with valid image MIME types, confirming the shared Cloudinary configuration was not broken.
+- Production browser test uploaded a new 1.2 MB MP4 through Manage, displayed the blocking progress overlay, created a Cloudinary video resource, and returned its generated thumbnail as HTTP 206 `image/jpeg`. The temporary test resource was destroyed immediately afterward, so no test album row was added.
 
 ## 2026-09-25 — Cloudinary storage usage settings
 
@@ -53,13 +54,13 @@ A thumbnail column backfill is not required for the existing catalog because it 
 The live `cloudinary.api.usage()` response reports:
 
 - Plan: `Free`
-- Credits: `20.72 / 25` (`82.88%`) at the latest inspection
+- Credits: `20.78 / 25` (`83.12%`) at the latest inspection
 - Storage: `2,039,766,586` bytes and `1.90` credits
 - Bandwidth: `1,852,720,853` bytes and `1.73` credits
 - Objects: `471`
 - Resources / derived resources: `246 / 225`
 - Requests: `2,885`
-- Transformations: `17,085` (`17.09` credits)
+- Transformations: `17,151` (`17.15` credits)
 
 The Free-plan response has no separate `storage.limit` or `bandwidth.limit`. The implementation therefore uses the real monthly credits limit as the primary progress bar and displays actual storage/bandwidth values as usage metrics. It does not fabricate a storage quota.
 

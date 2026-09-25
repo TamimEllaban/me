@@ -118,16 +118,18 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       date: d.date,
       url: d.kind === "video" ? cloudinaryVideoPlaybackUrl(d.url) : d.url,
       thumb:
-        d.thumbnailUrl ||
-        (d.kind === "video" ? cloudinaryVideoThumbnailUrl(d.url) : cloudinaryImageUrl(d.url, 640)),
+        d.kind === "video"
+          ? cloudinaryVideoThumbnailUrl(d.thumbnailUrl || d.url)
+          : cloudinaryImageUrl(d.url, 640),
       canDelete: true,
     })),
     ...raw.map((r) => ({
       ...r,
       url: r.kind === "video" ? cloudinaryVideoPlaybackUrl(r.url) : r.url,
       thumb:
-        r.thumb ||
-        (r.kind === "video" ? cloudinaryVideoThumbnailUrl(r.url) : cloudinaryImageUrl(r.url, 640)),
+        r.kind === "video"
+          ? cloudinaryVideoThumbnailUrl(r.thumb || r.url)
+          : cloudinaryImageUrl(r.url, 640),
       category: overrideMap.get(r.id) || r.category,
       canDelete: true,
     })),

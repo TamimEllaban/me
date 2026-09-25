@@ -51,6 +51,26 @@ for (const video of videos) {
       continue;
     }
     const thumbnailUrl = thumbnailUrlFromVideo(video.url);
+    const thumbnailResponse = await fetch(thumbnailUrl, {
+      headers: { Range: "bytes=0-0" },
+    });
+    if (!thumbnailResponse.ok && thumbnailResponse.status !== 206) {
+      manual.push({
+        id: video.id,
+        status: thumbnailResponse.status,
+        reason: "thumbnail could not be generated",
+      });
+      continue;
+    }
+    const thumbnailType = thumbnailResponse.headers.get("content-type") ?? "";
+    if (!thumbnailType.startsWith("image/")) {
+      manual.push({
+        id: video.id,
+        status: thumbnailResponse.status,
+        reason: `unexpected thumbnail content type: ${thumbnailType || "unknown"}`,
+      });
+      continue;
+    }
     await sql.query(
       `UPDATE gallery_items SET thumbnail_url = $1 WHERE id = $2 AND kind = 'video'`,
       [thumbnailUrl, video.id],
