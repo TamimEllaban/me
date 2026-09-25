@@ -11,8 +11,23 @@ import { Heart, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import legacyTvCss from "../legacy-tv.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartoonCarLoader } from "../components/cartoon-loader";
+import { installLegacyCustomEvent } from "../legacy-tv-polyfills";
+
+if (typeof window !== "undefined") {
+  installLegacyCustomEvent();
+}
+
+const legacyTvBootstrap = `(function(){try{var d=document.documentElement;var c=window.CSS&&CSS.supports;var vars=!!(c&&c("--legacy-tv","0"));var grid=!!(c&&c("display","grid"));var color=!!(c&&c("color","oklch(50% 0.1 20)"));var layer=false;var s=document.createElement("style");s.type="text/css";s.textContent="@layer legacy-tv-test { .legacy-tv-test { color: red; } }";var h=document.getElementsByTagName("head")[0];if(h){h.appendChild(s);layer=!!(s.sheet&&s.sheet.cssRules&&s.sheet.cssRules.length);s.parentNode.removeChild(s);}if(vars&&grid&&color&&layer){d.removeAttribute("data-tv-legacy");}else{d.setAttribute("data-tv-legacy","true");}}catch(e){document.documentElement.setAttribute("data-tv-legacy","true");}}());`;
+const legacyTvNoModuleFix = `!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();`;
+declare const __LEGACY_ASSET_VERSION__: string;
+const legacyAssetVersion =
+  typeof __LEGACY_ASSET_VERSION__ === "string" ? __LEGACY_ASSET_VERSION__ : "dev";
+const legacyTvPolyfillUrl = `/assets/polyfills-legacy.js?v=${legacyAssetVersion}`;
+const legacyTvEntryUrl = `/assets/app-legacy.js?v=${legacyAssetVersion}`;
+const legacyTvAutoFallback = `(function(){setTimeout(function(){if(window.__legacyTvStarted||window.__tamimHydrated)return;window.__legacyTvStarted=true;function boot(){if(window.System){System.import("${legacyTvEntryUrl}");}}if(window.System){boot();return;}var s=document.createElement("script");s.src="${legacyTvPolyfillUrl}";s.onload=boot;s.onerror=function(){window.__legacyTvStarted=false;};document.head.appendChild(s);},5000);}());`;
 
 function NotFoundComponent() {
   return (
@@ -92,6 +107,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       {
         rel: "stylesheet",
+        href: legacyTvCss,
+      },
+      {
+        rel: "stylesheet",
         href: appCss,
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -113,13 +132,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-tv-legacy="true" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: legacyTvBootstrap }} />
         <HeadContent />
       </head>
       <body>
         {children}
         <Scripts />
+        {/* TanStack Start emits the document through SSR, so the legacy
+            plugin's index.html transform cannot add these tags for us. */}
+        {import.meta.env.PROD ? (
+          <>
+            <script
+              {...{ nomodule: "" }}
+              dangerouslySetInnerHTML={{ __html: legacyTvNoModuleFix }}
+            />
+            <script {...{ nomodule: "" }} src={legacyTvPolyfillUrl} />
+            <script
+              {...{ nomodule: "" }}
+              dangerouslySetInnerHTML={{
+                __html: `window.__legacyTvStarted=!!window.System;if(window.System){System.import("${legacyTvEntryUrl}")}`,
+              }}
+            />
+            <script dangerouslySetInnerHTML={{ __html: legacyTvAutoFallback }} />
+          </>
+        ) : null}
       </body>
     </html>
   );
@@ -164,6 +202,12 @@ function Splash({ name = "Tamim" }: { name?: string }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as Window & { __tamimHydrated?: boolean }).__tamimHydrated = true;
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
