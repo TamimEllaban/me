@@ -2,11 +2,13 @@
 // then send the file directly to Cloudinary. XMLHttpRequest is intentional here
 // because it provides real byte-level upload progress, unlike fetch.
 import { getFamilyUploadTicket } from "@/lib/gate.functions";
+import { cloudinaryVideoThumbnailUrl } from "@/lib/media-urls";
 
 export type MediaKind = "image" | "video";
 
 export type UploadedMedia = {
   url: string;
+  thumbnailUrl: string;
   publicId: string;
   kind: MediaKind;
   name: string;
@@ -82,10 +84,15 @@ export async function uploadMediaDirect(
           return;
         }
         onProgress?.(100);
+        const uploadedKind: MediaKind = json.resource_type === "video" ? "video" : kind;
         resolve({
           url: json.secure_url,
+          thumbnailUrl:
+            uploadedKind === "video"
+              ? cloudinaryVideoThumbnailUrl(json.secure_url)
+              : json.secure_url,
           publicId: json.public_id,
-          kind: json.resource_type === "video" ? "video" : kind,
+          kind: uploadedKind,
           name: displayName,
         });
       } catch {

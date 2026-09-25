@@ -52,6 +52,7 @@ function cleanName(name: string) {
 function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: string[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const [moving, setMoving] = useState(false);
   const [moveMsg, setMoveMsg] = useState<string | null>(null);
 
@@ -81,12 +82,20 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
           aria-label={`عرض ${isVideo ? "الفيديو" : "الصورة"}: ${title}`}
         >
           <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted/30 sm:aspect-[4/3] xl:aspect-[4/5] 2xl:aspect-[4/3]">
-            <img
-              src={item.thumb}
-              alt={title}
-              loading="lazy"
-              className="size-full object-cover transition duration-300 group-hover:scale-[1.04]"
-            />
+            {thumbnailFailed ? (
+              <span className="flex size-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-muted via-secondary to-muted text-muted-foreground">
+                <Video className="size-10" />
+                <span className="text-xs font-medium">Thumbnail غير متاح</span>
+              </span>
+            ) : (
+              <img
+                src={item.thumb}
+                alt={title}
+                loading="lazy"
+                onError={() => setThumbnailFailed(true)}
+                className="size-full object-cover transition duration-300 group-hover:scale-[1.04]"
+              />
+            )}
             <span className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-md bg-black/65 px-2 py-1 text-[0.68rem] font-medium text-white shadow-sm backdrop-blur-md">
               {isVideo ? <Video className="size-3" /> : <Camera className="size-3" />}
               <span>{isVideo ? "فيديو" : "صورة"}</span>

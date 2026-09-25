@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Mail,
+  Settings,
   Share2,
   Sprout,
   Users,
@@ -75,6 +76,14 @@ export function WorldShell({
             >
               <Camera className="size-4 text-primary 2xl:size-5" />
               <span className="hidden sm:inline">Add photos</span>
+            </Link>
+            <Link
+              to="/admin/settings/storage"
+              className="grid size-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 active:scale-95 2xl:size-12"
+              aria-label="Cloudinary storage settings"
+              title="Storage settings"
+            >
+              <Settings className="size-4 2xl:size-5" />
             </Link>
             <Button
               size="icon"

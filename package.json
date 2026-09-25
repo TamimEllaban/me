@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --test src/lib/tree/layoutTree.test.ts"
+    "test": "node --test src/lib/auth.server.test.ts src/lib/cloudinary-usage.test.ts src/lib/media-urls.test.ts src/lib/tree/layoutTree.test.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"

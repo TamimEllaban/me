@@ -105,6 +105,27 @@ export async function uploadFamilyImage(
   }
 }
 
+export type CloudinaryUsageResponse = {
+  plan?: string;
+  last_updated?: string;
+  date_requested?: string;
+  objects?: { usage?: number; limit?: number };
+  bandwidth?: { usage?: number; limit?: number; credits_usage?: number };
+  storage?: { usage?: number; limit?: number; credits_usage?: number };
+  credits?: { usage?: number; limit?: number; used_percent?: number };
+  transformations?: { usage?: number; credits_usage?: number };
+  resources?: number;
+  derived_resources?: number;
+  requests?: number;
+  [key: string]: unknown;
+};
+
+export async function fetchCloudinaryUsage(): Promise<CloudinaryUsageResponse> {
+  const c = client();
+  if (!c) throw new Error("CLOUDINARY_NOT_CONFIGURED");
+  return (await c.api.usage()) as CloudinaryUsageResponse;
+}
+
 export async function deleteFamilyImage(
   publicId: string,
   kind: "image" | "video" = "image",

@@ -1,10 +1,6 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-// useSession from @tanstack/react-start/server is a server-side context helper,
-// not a React hook, despite returning a promise and being named use*.
 import { createServerFn } from "@tanstack/react-start";
-import { useSession } from "@tanstack/react-start/server";
-import { redirect } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { getFamilySession, requireUnlocked } from "./auth.server";
 import {
   addGalleryItem,
   addLetter as dbAddLetter,
@@ -30,24 +26,11 @@ import {
 } from "./cloudinary.server";
 import { getChild, getLetters, getMemories, getProfiles, getRelatives } from "./world-data.server";
 import mediaCatalog from "./media-catalog.json";
-
-type FamilySession = { unlocked?: boolean; profileId?: string };
-
-function getSessionConfig() {
-  return {
-    password:
-      process.env["SESSION_SECRET"] ||
-      "tamim-world-family-default-session-secret-key-min-32-chars!",
-    name: "family-world",
-    maxAge: 60 * 60 * 24 * 30,
-    cookie: {
-      httpOnly: true,
-      secure: process.env["NODE_ENV"] === "production",
-      sameSite: "lax" as const,
-      path: "/",
-    },
-  };
-}
+import {
+  cloudinaryImageUrl,
+  cloudinaryVideoPlaybackUrl,
+  cloudinaryVideoThumbnailUrl,
+} from "./media-urls";
 
 function matches(input: string, expected: string) {
   const left = createHash("sha256").update(input).digest();
@@ -55,24 +38,18 @@ function matches(input: string, expected: string) {
   return timingSafeEqual(left, right);
 }
 
-async function requireUnlocked() {
-  const session = await useSession<FamilySession>(getSessionConfig());
-  if (!session.data.unlocked) throw redirect({ to: "/unlock" });
-  return session;
-}
-
 export const unlockSite = createServerFn({ method: "POST" })
   .inputValidator((data: { password: string; profileId: string }) => data)
   .handler(async ({ data }) => {
     const expected = process.env["SITE_PASSWORD"];
     if (!expected || !matches(data.password, expected)) return { ok: false as const };
-    const session = await useSession<FamilySession>(getSessionConfig());
+    const session = await getFamilySession();
     await session.update({ unlocked: true, profileId: data.profileId });
     return { ok: true as const };
   });
 
 export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
-  const session = await useSession<FamilySession>(getSessionConfig());
+  const session = await getFamilySession();
   await session.clear();
   return { ok: true as const };
 });
@@ -124,21 +101,6 @@ export type GalleryItem = {
   canDelete: boolean;
 };
 
-function optimizeUrl(url: string, width: number): string {
-  if (!/res\.cloudinary\.com/.test(url)) return url;
-  return url.replace("/image/upload/", `/image/upload/w_${width},f_auto,q_auto/`);
-}
-
-function videoThumbUrl(url: string): string {
-  if (!/res\.cloudinary\.com/.test(url)) return url;
-  return url.replace("/video/upload/", "/video/upload/so_1,f_jpg,q_auto,w_800/");
-}
-
-function videoPlaybackUrl(url: string): string {
-  if (!/res\.cloudinary\.com/.test(url) || /\/f_mp4(?:,|\/)/.test(url)) return url;
-  return url.replace("/video/upload/", "/video/upload/f_mp4,q_auto/");
-}
-
 export type GalleryCategory = { name: string; items: GalleryItem[] };
 
 export const getGalleryData = createServerFn({ method: "GET" }).handler(async () => {
@@ -154,13 +116,18 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       sourceName: d.sourceName,
       category: overrideMap.get(d.id) || d.category,
       date: d.date,
-      url: d.kind === "video" ? videoPlaybackUrl(d.url) : d.url,
-      thumb: d.kind === "video" ? videoThumbUrl(d.url) : optimizeUrl(d.url, 640),
+      url: d.kind === "video" ? cloudinaryVideoPlaybackUrl(d.url) : d.url,
+      thumb:
+        d.thumbnailUrl ||
+        (d.kind === "video" ? cloudinaryVideoThumbnailUrl(d.url) : cloudinaryImageUrl(d.url, 640)),
       canDelete: true,
     })),
     ...raw.map((r) => ({
       ...r,
-      url: r.kind === "video" ? videoPlaybackUrl(r.url) : r.url,
+      url: r.kind === "video" ? cloudinaryVideoPlaybackUrl(r.url) : r.url,
+      thumb:
+        r.thumb ||
+        (r.kind === "video" ? cloudinaryVideoThumbnailUrl(r.url) : cloudinaryImageUrl(r.url, 640)),
       category: overrideMap.get(r.id) || r.category,
       canDelete: true,
     })),
@@ -171,7 +138,9 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       ...item,
       thumb:
         item.thumb ||
-        (item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640)),
+        (item.kind === "video"
+          ? cloudinaryVideoThumbnailUrl(item.url)
+          : cloudinaryImageUrl(item.url, 640)),
     }));
   items.sort(
     (a, b) =>
@@ -260,6 +229,7 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
       story,
       excerpt,
       mediaKind,
+      thumbnailUrl,
     }: {
       kind: "hero" | "memory" | "relative" | "gallery";
       id?: string | undefined;
@@ -270,7 +240,8 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
       story?: string | undefined;
       excerpt?: string | undefined;
       mediaKind?: "image" | "video" | undefined;
-    }) => ({ kind, id, url, name, category, date, story, excerpt, mediaKind }),
+      thumbnailUrl?: string | undefined;
+    }) => ({ kind, id, url, name, category, date, story, excerpt, mediaKind, thumbnailUrl }),
   )
   .handler(async ({ data }) => {
     await requireUnlocked();
@@ -283,6 +254,7 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
         category: data.category || "03 - تميم وهو صغير",
         date: data.date || "",
         url: data.url,
+        thumbnailUrl: data.thumbnailUrl,
         kind: data.mediaKind === "video" ? "video" : "image",
       });
       ok = res.ok;

@@ -97,6 +97,7 @@ export type GalleryItemRow = {
   category: string;
   date: string;
   url: string;
+  thumbnailUrl: string | null;
 };
 
 const CHILD_SQL = `SELECT name, birthdate::text AS birthdate, welcome, hero_image FROM child WHERE id = 1 LIMIT 1`;
@@ -104,7 +105,7 @@ const MEMORIES_SQL = `SELECT id, title, date, category, image, excerpt, story, s
 const RELATIVES_SQL = `SELECT id, name, relationship, "group", image, fact, bio, sort_order, parent_id AS "parentId", spouse_id AS "spouseId" FROM relatives ORDER BY sort_order ASC`;
 const LETTERS_SQL = `SELECT id, title, author, date, message FROM letters ORDER BY created_at ASC, id ASC`;
 const PROFILES_SQL = `SELECT id, name, initials FROM profiles ORDER BY created_at ASC, id ASC`;
-const GALLERY_SQL = `SELECT id, kind, source_name AS "sourceName", category, date, url FROM gallery_items ORDER BY created_at DESC, id DESC`;
+const GALLERY_SQL = `SELECT id, kind, source_name AS "sourceName", category, date, url, thumbnail_url AS "thumbnailUrl" FROM gallery_items ORDER BY created_at DESC, id DESC`;
 
 export const loadChild = () =>
   withCache<ChildRow | null>("child", async () => {
@@ -302,6 +303,7 @@ export async function addGalleryItem(input: {
   sourceName: string;
   category: string;
   url: string;
+  thumbnailUrl?: string | undefined;
   date?: string;
   kind?: "image" | "video";
 }): Promise<{ ok: boolean; id?: string }> {
@@ -310,8 +312,8 @@ export async function addGalleryItem(input: {
   try {
     const id = `g-${sqlUuid()}`;
     await client.query(
-      `INSERT INTO gallery_items (id, kind, source_name, category, date, url, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now())`,
+      `INSERT INTO gallery_items (id, kind, source_name, category, date, url, thumbnail_url, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
       [
         id,
         input.kind || "image",
@@ -319,6 +321,7 @@ export async function addGalleryItem(input: {
         input.category.trim().slice(0, 120) || "General",
         input.date?.trim() || "",
         input.url,
+        input.thumbnailUrl?.trim() || null,
       ],
     );
     invalidate(["gallery_items"]);

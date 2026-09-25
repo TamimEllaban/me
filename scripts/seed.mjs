@@ -99,8 +99,12 @@ await sql`
     category TEXT NOT NULL,
     date TEXT NOT NULL DEFAULT '',
     url TEXT NOT NULL,
+    thumbnail_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   )`;
+
+// Idempotent migration for video thumbnails on databases created before the column existed.
+await sql`ALTER TABLE gallery_items ADD COLUMN IF NOT EXISTS thumbnail_url TEXT`;
 
 await sql`
   CREATE TABLE IF NOT EXISTS gallery_overrides (

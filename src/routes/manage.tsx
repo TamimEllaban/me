@@ -56,6 +56,7 @@ import {
   updateMemoryEntry,
   updateRelativeEntry,
 } from "@/lib/gate.functions";
+import { cloudinaryVideoThumbnailUrl } from "@/lib/media-urls";
 import {
   getMediaKind,
   isSupportedMediaFile,
@@ -387,7 +388,15 @@ function PhotoFlow({
 
   function applyLink() {
     if (!linkUrl.trim()) return;
-    onMediaChange([{ url: linkUrl.trim(), publicId: "", kind: "image", name: "Linked photo" }]);
+    onMediaChange([
+      {
+        url: linkUrl.trim(),
+        thumbnailUrl: linkUrl.trim(),
+        publicId: "",
+        kind: "image",
+        name: "Linked photo",
+      },
+    ]);
     setKind("gallery");
     setPlaced(null);
   }
@@ -423,6 +432,7 @@ function PhotoFlow({
               category: effectiveCategory,
               date: galleryDate.trim(),
               mediaKind: item.kind,
+              thumbnailUrl: item.thumbnailUrl,
             },
           });
           if (res.ok) savedCount += 1;
@@ -747,7 +757,7 @@ function PhotoFlow({
             <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:size-28 2xl:size-32">
               {firstMedia.kind === "video" ? (
                 <video
-                  src={firstMedia.url}
+                  src={firstMedia.thumbnailUrl}
                   muted
                   playsInline
                   preload="metadata"
@@ -1241,6 +1251,8 @@ function PhotoLibrary({
                     onClick={() =>
                       onPick({
                         url: p.url,
+                        thumbnailUrl:
+                          p.kind === "video" ? cloudinaryVideoThumbnailUrl(p.url) : p.url,
                         publicId: p.publicId,
                         kind: p.kind,
                         name: nameFromUrl.replace(/\.[^.]+$/, ""),

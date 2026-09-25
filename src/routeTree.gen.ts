@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as FamilyTreeRouteImport } from './routes/family-tree'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LettersRouteImport } from './routes/letters'
@@ -17,10 +18,18 @@ import { Route as ManageRouteImport } from './routes/manage'
 import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as RelativesRouteImport } from './routes/relatives'
 import { Route as UnlockRouteImport } from './routes/unlock'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminSettingsStorageRouteImport } from './routes/admin/settings/storage'
+import { Route as ApiAdminSettingsStorageUsageRouteImport } from './routes/api/admin/settings/storage-usage'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamilyTreeRoute = FamilyTreeRouteImport.update({
@@ -58,9 +67,26 @@ const UnlockRoute = UnlockRouteImport.update({
   path: '/unlock',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsStorageRoute = AdminSettingsStorageRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => AdminSettingsRoute,
+} as any)
+const ApiAdminSettingsStorageUsageRoute =
+  ApiAdminSettingsStorageUsageRouteImport.update({
+    id: '/api/admin/settings/storage-usage',
+    path: '/api/admin/settings/storage-usage',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/family-tree': typeof FamilyTreeRoute
   '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
@@ -68,9 +94,13 @@ export interface FileRoutesByFullPath {
   '/memories': typeof MemoriesRoute
   '/relatives': typeof RelativesRoute
   '/unlock': typeof UnlockRoute
+  '/admin/settings': typeof AdminSettingsRouteWithChildren
+  '/admin/settings/storage': typeof AdminSettingsStorageRoute
+  '/api/admin/settings/storage-usage': typeof ApiAdminSettingsStorageUsageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/family-tree': typeof FamilyTreeRoute
   '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
@@ -78,10 +108,14 @@ export interface FileRoutesByTo {
   '/memories': typeof MemoriesRoute
   '/relatives': typeof RelativesRoute
   '/unlock': typeof UnlockRoute
+  '/admin/settings': typeof AdminSettingsRouteWithChildren
+  '/admin/settings/storage': typeof AdminSettingsStorageRoute
+  '/api/admin/settings/storage-usage': typeof ApiAdminSettingsStorageUsageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/family-tree': typeof FamilyTreeRoute
   '/gallery': typeof GalleryRoute
   '/letters': typeof LettersRoute
@@ -89,11 +123,15 @@ export interface FileRoutesById {
   '/memories': typeof MemoriesRoute
   '/relatives': typeof RelativesRoute
   '/unlock': typeof UnlockRoute
+  '/admin/settings': typeof AdminSettingsRouteWithChildren
+  '/admin/settings/storage': typeof AdminSettingsStorageRoute
+  '/api/admin/settings/storage-usage': typeof ApiAdminSettingsStorageUsageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/family-tree'
     | '/gallery'
     | '/letters'
@@ -101,9 +139,13 @@ export interface FileRouteTypes {
     | '/memories'
     | '/relatives'
     | '/unlock'
+    | '/admin/settings'
+    | '/admin/settings/storage'
+    | '/api/admin/settings/storage-usage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/family-tree'
     | '/gallery'
     | '/letters'
@@ -111,9 +153,13 @@ export interface FileRouteTypes {
     | '/memories'
     | '/relatives'
     | '/unlock'
+    | '/admin/settings'
+    | '/admin/settings/storage'
+    | '/api/admin/settings/storage-usage'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/family-tree'
     | '/gallery'
     | '/letters'
@@ -121,10 +167,14 @@ export interface FileRouteTypes {
     | '/memories'
     | '/relatives'
     | '/unlock'
+    | '/admin/settings'
+    | '/admin/settings/storage'
+    | '/api/admin/settings/storage-usage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   FamilyTreeRoute: typeof FamilyTreeRoute
   GalleryRoute: typeof GalleryRoute
   LettersRoute: typeof LettersRoute
@@ -132,6 +182,7 @@ export interface RootRouteChildren {
   MemoriesRoute: typeof MemoriesRoute
   RelativesRoute: typeof RelativesRoute
   UnlockRoute: typeof UnlockRoute
+  ApiAdminSettingsStorageUsageRoute: typeof ApiAdminSettingsStorageUsageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +192,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/family-tree': {
@@ -192,11 +250,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnlockRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings/storage': {
+      id: '/admin/settings/storage'
+      path: '/storage'
+      fullPath: '/admin/settings/storage'
+      preLoaderRoute: typeof AdminSettingsStorageRouteImport
+      parentRoute: typeof AdminSettingsRoute
+    }
+    '/api/admin/settings/storage-usage': {
+      id: '/api/admin/settings/storage-usage'
+      path: '/api/admin/settings/storage-usage'
+      fullPath: '/api/admin/settings/storage-usage'
+      preLoaderRoute: typeof ApiAdminSettingsStorageUsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AdminSettingsRouteChildren {
+  AdminSettingsStorageRoute: typeof AdminSettingsStorageRoute
+}
+
+const AdminSettingsRouteChildren: AdminSettingsRouteChildren = {
+  AdminSettingsStorageRoute: AdminSettingsStorageRoute,
+}
+
+const AdminSettingsRouteWithChildren = AdminSettingsRoute._addFileChildren(
+  AdminSettingsRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminSettingsRoute: typeof AdminSettingsRouteWithChildren
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminSettingsRoute: AdminSettingsRouteWithChildren,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   FamilyTreeRoute: FamilyTreeRoute,
   GalleryRoute: GalleryRoute,
   LettersRoute: LettersRoute,
@@ -204,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   MemoriesRoute: MemoriesRoute,
   RelativesRoute: RelativesRoute,
   UnlockRoute: UnlockRoute,
+  ApiAdminSettingsStorageUsageRoute: ApiAdminSettingsStorageUsageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
