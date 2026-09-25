@@ -756,6 +756,23 @@
   overflow: hidden;
   background: #000000;
 }
+/* A 16:9 box that also respects the height of the dialog it lives in, so the
+   controls never fall outside the frame on a short laptop screen. */
+@supports (aspect-ratio: 16 / 9) {
+  .tv-video-player__stage {
+    height: auto;
+    padding-bottom: 0;
+    aspect-ratio: 16 / 9;
+    max-height: 58dvh;
+  }
+}
+@media (min-width: 1536px) {
+  @supports (aspect-ratio: 16 / 9) {
+    .tv-video-player__stage {
+      max-height: 72dvh;
+    }
+  }
+}
 .tv-video-player__stage video,
 .tv-video-player__poster {
   position: absolute;
@@ -890,6 +907,8 @@
   height: auto;
   min-height: 0;
   padding-bottom: 0;
+  max-height: none;
+  aspect-ratio: auto;
 }
 .tv-video-player--theater .tv-video-player__controls,
 .tv-video-player--fullscreen .tv-video-player__controls {
@@ -932,69 +951,27 @@
   }
 }
 
-/* A 1080p television is viewed from farther away than a desktop monitor.
-   Increase the usable reading size before the 4K breakpoint. */
-@media (min-width: 1280px) {
+/* Device-aware reading size.
+   Desktops and laptops keep the Tailwind rem scale: bumping `:root` by width
+   inflated every rem-based size (header, nav, cards, dialogs) and produced
+   horizontal overflow on normal screens. The extra size a living-room
+   television needs is applied only when the browser reports a coarse pointer
+   with no hover, i.e. a TV/remote and not a mouse-driven desktop. Legacy TV
+   engines get their own copy of these sizes in legacy-tv.css, scoped to
+   [data-tv-legacy="true"]. */
+@media (min-width: 1280px) and (hover: none) and (pointer: coarse) {
   :root {
     font-size: 17px;
   }
-
-  .site-header-inner {
-    height: 5.25rem;
-    padding-right: 4rem;
-    padding-left: 4rem;
-  }
-
-  .site-main {
-    padding-bottom: 9rem;
-  }
-
-  .site-nav {
-    width: min(76rem, calc(100% - 4rem));
-    max-width: 76rem;
-  }
-
-  .site-nav-inner {
-    max-width: none;
-    height: 6rem;
-  }
-
-  .site-nav-link {
-    min-height: 4.75rem;
-    font-size: 0.9rem;
-  }
-
-  [role="dialog"] {
-    width: 92vw !important;
-    max-width: 90rem !important;
-    max-height: 90vh;
-  }
 }
 
-@media (min-width: 1920px) {
-  .site-header-inner {
-    padding-right: 6rem;
-    padding-left: 6rem;
-  }
-
-  .site-nav {
-    bottom: 2rem;
-    width: min(88rem, calc(100% - 6rem));
-    max-width: 88rem;
-  }
-
-  .site-nav-inner {
-    height: 6.5rem;
-  }
-}
-
-@media (min-width: 1600px) {
+@media (min-width: 1600px) and (hover: none) and (pointer: coarse) {
   :root {
     font-size: 18px;
   }
 }
 
-@media (min-width: 2200px) {
+@media (min-width: 2200px) and (hover: none) and (pointer: coarse) {
   :root {
     font-size: 20px;
   }
