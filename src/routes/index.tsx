@@ -84,7 +84,7 @@ function HomePage() {
   const heroImage = child.hero_image ?? hero;
   return (
     <WorldShell>
-      <section className="relative min-h-[70svh] overflow-hidden sm:mx-6 sm:mt-6 sm:min-h-[36rem] sm:rounded-xl">
+      <section className="relative min-h-[70svh] overflow-hidden sm:mx-6 sm:mt-6 sm:min-h-[36rem] sm:rounded-xl 2xl:mx-8 2xl:min-h-[calc(100dvh-7rem)]">
         <img
           src={heroImage}
           alt="A joyful child in a warm sunlit room"
@@ -93,12 +93,12 @@ function HomePage() {
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-hero-wash" />
-        <div className="absolute inset-x-0 bottom-0 px-5 pb-8 text-white sm:px-10 sm:pb-10">
+        <div className="absolute inset-x-0 bottom-0 px-5 pb-8 text-white sm:px-10 sm:pb-10 2xl:px-16 2xl:pb-14">
           <p className="mb-2 flex items-center gap-2 text-sm">
             <CalendarDays className="size-4" />
             Born {formatBornDate(child.birthdate)}
           </p>
-          <h1 className="font-display text-5xl leading-none sm:text-7xl">
+          <h1 className="font-display text-5xl leading-none sm:text-7xl 2xl:text-8xl">
             {child.name}'s
             <br />
             World
@@ -108,7 +108,7 @@ function HomePage() {
           </div>
         </div>
       </section>
-      <section className="px-5 py-10 sm:px-8">
+      <section className="px-5 py-10 sm:px-8 2xl:px-12 2xl:py-14">
         <p className="max-w-xl font-display text-2xl leading-relaxed sm:text-3xl">
           “{child.welcome}”
         </p>
@@ -117,7 +117,7 @@ function HomePage() {
             <Link
               key={to}
               to={to}
-              className="group flex min-h-28 items-center justify-between rounded-lg border border-border bg-card p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-keepsake"
+              className="group flex min-h-28 items-center justify-between rounded-lg border border-border bg-card p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-keepsake focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 2xl:min-h-36 2xl:p-7"
             >
               <span>
                 <Icon className="mb-3 size-5 text-primary" />

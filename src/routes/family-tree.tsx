@@ -84,8 +84,8 @@ function FamilyTreePage() {
         text="شجرة حيّة بتنمو من الجذور لحد التاج: تميم في النور فوق، وبابا وماما، والجدود، والعمام والخالات، وأولادهم — كل واحد منّا مخضوب على فرع أو جذر. اضغط أي صورة تشوف بطاقتها. جرب طريقة العرض اللي تناسبك: الشجرة الكبيرة للموبيل والديسكتوب، أو الكروت، أو القائمة."
       />
 
-      <div className="mx-auto mt-1 flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 px-5 sm:px-8">
-        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-soft">
+      <div className="mx-auto mt-1 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 sm:px-8 2xl:px-12">
+        <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-soft 2xl:p-1.5">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = view === id;
             return (
@@ -94,7 +94,7 @@ function FamilyTreePage() {
                 type="button"
                 onClick={() => setView(id)}
                 aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 focus-visible:ring-2 focus-visible:ring-primary ${
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 2xl:px-5 2xl:py-2.5 2xl:text-base ${
                   active
                     ? "bg-primary text-primary-foreground shadow"
                     : "text-muted-foreground hover:bg-secondary"

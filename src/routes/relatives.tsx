@@ -62,7 +62,7 @@ function RelativesPage() {
         title="Your people"
         text="Tap anyone to see their card — you can add branches, edit names or add their photo."
       />
-      <div className="px-5 sm:px-8">
+      <div className="px-5 sm:px-8 2xl:px-12">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3.5 size-4 text-muted-foreground" />
@@ -96,13 +96,13 @@ function RelativesPage() {
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 pb-10 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 pb-10 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 2xl:gap-5">
           {shown.map((person) => {
             const rel = person as RelativeLike;
             return (
               <Dialog key={person.id}>
                 <DialogTrigger asChild>
-                  <button className="min-h-64 rounded-lg border border-border bg-card p-3 text-left shadow-soft transition active:scale-[.98]">
+                  <button className="min-h-64 rounded-lg border border-border bg-card p-3 text-left shadow-soft transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 active:scale-[.98] 2xl:min-h-80 2xl:p-5">
                     <img
                       src={person.image}
                       alt=""
@@ -118,7 +118,7 @@ function RelativesPage() {
                     </p>
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-sm 2xl:max-w-3xl">
                   <img
                     src={person.image}
                     alt=""

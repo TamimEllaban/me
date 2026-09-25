@@ -10,6 +10,8 @@ import {
   addLetter as dbAddLetter,
   addMemory as dbAddMemory,
   addRelative as dbAddRelative,
+  deleteGalleryItem,
+  deleteGalleryItemsByUrl,
   deleteRelative as dbDeleteRelative,
   loadGalleryItems,
   loadGalleryOverrides,
@@ -109,6 +111,8 @@ export const getLettersData = createServerFn({ method: "GET" }).handler(async ()
 
 // --- Media gallery (from the Cloudinary library catalog) ---
 
+const HIDDEN_GALLERY_CATEGORY = "__deleted_from_gallery__";
+
 export type GalleryItem = {
   id: string;
   kind: "image" | "video";
@@ -117,6 +121,7 @@ export type GalleryItem = {
   date: string;
   url: string;
   thumb: string;
+  canDelete: boolean;
 };
 
 function optimizeUrl(url: string, width: number): string {
@@ -127,6 +132,11 @@ function optimizeUrl(url: string, width: number): string {
 function videoThumbUrl(url: string): string {
   if (!/res\.cloudinary\.com/.test(url)) return url;
   return url.replace("/video/upload/", "/video/upload/so_1,f_jpg,q_auto,w_800/");
+}
+
+function videoPlaybackUrl(url: string): string {
+  if (!/res\.cloudinary\.com/.test(url) || /\/f_mp4(?:,|\/)/.test(url)) return url;
+  return url.replace("/video/upload/", "/video/upload/f_mp4,q_auto/");
 }
 
 export type GalleryCategory = { name: string; items: GalleryItem[] };
@@ -144,19 +154,25 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       sourceName: d.sourceName,
       category: overrideMap.get(d.id) || d.category,
       date: d.date,
-      url: d.url,
+      url: d.kind === "video" ? videoPlaybackUrl(d.url) : d.url,
       thumb: d.kind === "video" ? videoThumbUrl(d.url) : optimizeUrl(d.url, 640),
+      canDelete: true,
     })),
     ...raw.map((r) => ({
       ...r,
+      url: r.kind === "video" ? videoPlaybackUrl(r.url) : r.url,
       category: overrideMap.get(r.id) || r.category,
+      canDelete: true,
     })),
   ];
-  const items: GalleryItem[] = allRaw.map((item) => ({
-    ...item,
-    thumb:
-      item.thumb || (item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640)),
-  }));
+  const items: GalleryItem[] = allRaw
+    .filter((item) => overrideMap.get(item.id) !== HIDDEN_GALLERY_CATEGORY)
+    .map((item) => ({
+      ...item,
+      thumb:
+        item.thumb ||
+        (item.kind === "video" ? videoThumbUrl(item.url) : optimizeUrl(item.url, 640)),
+    }));
   items.sort(
     (a, b) =>
       a.category.localeCompare(b.category) ||
@@ -183,6 +199,13 @@ export const moveGalleryItemCategory = createServerFn({ method: "POST" })
     return await dbUpdateGalleryItemCategory(data.id, data.category);
   });
 
+export const deleteGalleryItemEntry = createServerFn({ method: "POST" })
+  .inputValidator(({ id }: { id: string }) => ({ id }))
+  .handler(async ({ data }) => {
+    await requireUnlocked();
+    return await deleteGalleryItem(data.id);
+  });
+
 // --- Family admin: Cloudinary photo upload / delete + wiring into the site ---
 
 export const uploadFamilyPhoto = createServerFn({ method: "POST" })
@@ -196,17 +219,28 @@ export const uploadFamilyPhoto = createServerFn({ method: "POST" })
 // straight to Cloudinary. This skips our server entirely, so huge photos
 // never hit Vercel's request-body size limit.
 export const getFamilyUploadTicket = createServerFn({ method: "POST" })
-  .inputValidator(({ name }: { name: string }) => ({ name }))
+  .inputValidator(({ name, kind }: { name: string; kind?: "image" | "video" }) => ({
+    name,
+    kind: kind ?? "image",
+  }))
   .handler(async ({ data }) => {
     await requireUnlocked();
-    return createFamilyUploadTicket(data.name);
+    return createFamilyUploadTicket(data.name, data.kind);
   });
 
 export const deleteFamilyPhoto = createServerFn({ method: "POST" })
-  .inputValidator(({ publicId }: { publicId: string }) => ({ publicId }))
+  .inputValidator(
+    ({ publicId, kind, url }: { publicId: string; kind?: "image" | "video"; url?: string }) => ({
+      publicId,
+      kind: kind ?? "image",
+      url,
+    }),
+  )
   .handler(async ({ data }) => {
     await requireUnlocked();
-    return { ok: await deleteFamilyImage(data.publicId) };
+    const ok = await deleteFamilyImage(data.publicId, data.kind);
+    if (ok && data.url) await deleteGalleryItemsByUrl(data.url);
+    return { ok };
   });
 
 export const listFamilyPhotos = createServerFn({ method: "GET" }).handler(async () => {
@@ -225,6 +259,7 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
       date,
       story,
       excerpt,
+      mediaKind,
     }: {
       kind: "hero" | "memory" | "relative" | "gallery";
       id?: string | undefined;
@@ -234,7 +269,8 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
       date?: string | undefined;
       story?: string | undefined;
       excerpt?: string | undefined;
-    }) => ({ kind, id, url, name, category, date, story, excerpt }),
+      mediaKind?: "image" | "video" | undefined;
+    }) => ({ kind, id, url, name, category, date, story, excerpt, mediaKind }),
   )
   .handler(async ({ data }) => {
     await requireUnlocked();
@@ -247,7 +283,7 @@ export const setFamilyPhoto = createServerFn({ method: "POST" })
         category: data.category || "03 - تميم وهو صغير",
         date: data.date || "",
         url: data.url,
-        kind: "image",
+        kind: data.mediaKind === "video" ? "video" : "image",
       });
       ok = res.ok;
     } else if (data.kind === "memory") {

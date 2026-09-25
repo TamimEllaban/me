@@ -227,9 +227,66 @@
     border-color: var(--color-border);
   }
 
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--background);
+    scroll-behavior: smooth;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
+    min-width: 320px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
     background-color: var(--color-background);
     color: var(--color-foreground);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--ring) 68%, transparent);
+    outline-offset: 3px;
+  }
+}
+
+/* Large-screen / living-room TV layout. A 52-inch LG commonly exposes a
+   1920×1080 browser viewport, so the desktop breakpoint alone is not enough. */
+@media (min-width: 1600px) {
+  :root {
+    font-size: 18px;
+  }
+
+  .site-frame {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .site-header {
+    background: color-mix(in oklab, var(--background) 94%, transparent);
+  }
+
+  .site-main {
+    padding-bottom: 9rem;
+  }
+
+  .site-nav-link {
+    min-height: 5.25rem;
+  }
+}
+
+@media (min-width: 2200px) {
+  :root {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 

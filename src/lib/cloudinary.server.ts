@@ -4,7 +4,7 @@
 // functions that use the signed SDK. Everything here returns null/false when
 // Cloudinary is not configured so the rest of the app degrades gracefully.
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 
 function client() {
@@ -25,10 +25,13 @@ function client() {
 
 const BASE_FOLDER = "tamims-world";
 
-// Returns everything a browser needs to upload a photo straight to Cloudinary
+// Returns everything a browser needs to upload media directly to Cloudinary
 // (bypassing Vercel's request-body size limit). The signature is the only thing
 // signed here — the API secret never reaches the client.
-export function createFamilyUploadTicket(name: string): {
+export function createFamilyUploadTicket(
+  name: string,
+  kind: "image" | "video" = "image",
+): {
   cloudName: string;
   apiKey: string;
   timestamp: number;
@@ -36,6 +39,7 @@ export function createFamilyUploadTicket(name: string): {
   folder: string;
   publicId: string;
   transformation: string;
+  resourceType: "image" | "video";
 } | null {
   const cloudName = process.env["CLOUDINARY_CLOUD_NAME"];
   const apiKey = process.env["CLOUDINARY_API_KEY"];
@@ -46,22 +50,32 @@ export function createFamilyUploadTicket(name: string): {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "photo";
-  const publicId = `${safe}-${Date.now()}`;
+      .slice(0, 40) || (kind === "video" ? "video" : "photo");
+  const publicId = `${safe}-${Date.now()}-${randomBytes(3).toString("hex")}`;
   const timestamp = Math.floor(Date.now() / 1000);
-  const transformation = "c_limit,q_auto:good,w_1600";
+  const transformation = kind === "video" ? "c_limit,w_1920" : "c_limit,w_1600,q_auto:good";
+  const resourceType = kind === "video" ? "video" : "image";
   const params: Record<string, string> = {
     folder: BASE_FOLDER,
     public_id: publicId,
     timestamp: String(timestamp),
-    transformation,
   };
+  if (transformation) params.transformation = transformation;
   const query = Object.keys(params)
     .sort()
     .map((k) => `${k}=${params[k]}`)
     .join("&");
   const signature = createHash("sha1").update(`${query}${apiSecret}`).digest("hex");
-  return { cloudName, apiKey, timestamp, signature, folder: BASE_FOLDER, publicId, transformation };
+  return {
+    cloudName,
+    apiKey,
+    timestamp,
+    signature,
+    folder: BASE_FOLDER,
+    publicId,
+    transformation,
+    resourceType,
+  };
 }
 
 // Accepts a base64 data URL (data:image/...;base64,...) or a raw public URL.
@@ -91,11 +105,14 @@ export async function uploadFamilyImage(
   }
 }
 
-export async function deleteFamilyImage(publicId: string): Promise<boolean> {
+export async function deleteFamilyImage(
+  publicId: string,
+  kind: "image" | "video" = "image",
+): Promise<boolean> {
   const c = client();
   if (!c) return false;
   try {
-    const result = await c.uploader.destroy(publicId);
+    const result = await c.uploader.destroy(publicId, { resource_type: kind });
     return result.result === "ok";
   } catch (error) {
     console.error("[cloudinary] delete failed:", error);
@@ -104,24 +121,45 @@ export async function deleteFamilyImage(publicId: string): Promise<boolean> {
 }
 
 export async function listFamilyImages(): Promise<
-  Array<{ publicId: string; url: string; width?: number; height?: number }>
+  Array<{
+    publicId: string;
+    url: string;
+    kind: "image" | "video";
+    width?: number;
+    height?: number;
+  }>
 > {
   const c = client();
   if (!c) return [];
   try {
-    const result = await c.api.resources({
-      type: "upload",
-      prefix: BASE_FOLDER,
-      max_results: 100,
-    });
-    return (result.resources ?? []).map(
-      (r: { public_id: string; secure_url: string; width?: number; height?: number }) => ({
-        publicId: r.public_id,
-        url: r.secure_url,
-        width: r.width,
-        height: r.height,
+    const [images, videos] = await Promise.all([
+      c.api.resources({
+        type: "upload",
+        resource_type: "image",
+        prefix: BASE_FOLDER,
+        max_results: 100,
       }),
-    );
+      c.api.resources({
+        type: "upload",
+        resource_type: "video",
+        prefix: BASE_FOLDER,
+        max_results: 100,
+      }),
+    ]);
+    const mapResource = (r: {
+      public_id: string;
+      secure_url: string;
+      resource_type: string;
+      width?: number;
+      height?: number;
+    }) => ({
+      publicId: r.public_id,
+      url: r.secure_url,
+      kind: r.resource_type === "video" ? ("video" as const) : ("image" as const),
+      width: r.width,
+      height: r.height,
+    });
+    return [...(images.resources ?? []), ...(videos.resources ?? [])].map(mapResource);
   } catch (error) {
     console.error("[cloudinary] list failed:", error);
     return [];
@@ -130,7 +168,7 @@ export async function listFamilyImages(): Promise<
 
 // "https://res.cloudinary.com/<name>/image/upload/v123/abc/x.jpg" -> "abc/x"
 export function publicIdFromUrl(url: string): string | null {
-  const match = /\/image\/upload\/(?:v\d+\/)?(.+?)(?:\.\w+)?$/.exec(url);
+  const match = /\/(?:image|video)\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?(?:\?.*)?$/i.exec(url);
   return match?.[1] ?? null;
 }
 

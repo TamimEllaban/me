@@ -119,7 +119,7 @@ function LettersPage() {
           title="Letters for when you grow up"
           text="Words from the people who love you, waiting patiently for the right moment."
         />
-        <div className="px-5 pb-12 sm:px-8">
+        <div className="mx-auto max-w-[80rem] px-5 pb-12 sm:px-8 2xl:px-12">
           <div className="space-y-4">
             {letters.map((letter) => {
               const open = openId === letter.id;
@@ -129,7 +129,7 @@ function LettersPage() {
                   className="overflow-hidden rounded-lg border border-border bg-card shadow-soft transition-all duration-500"
                 >
                   <button
-                    className="flex min-h-32 w-full items-center gap-4 p-5 text-left"
+                    className="flex min-h-32 w-full items-center gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 2xl:min-h-40 2xl:p-7"
                     onClick={() => setOpenId(open ? null : letter.id)}
                   >
                     <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-secondary text-primary shadow-soft">
@@ -171,7 +171,7 @@ function LettersPage() {
                 Write a new letter
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-lg">
+            <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-lg 2xl:max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="font-display text-3xl">A letter for later</DialogTitle>
                 <DialogDescription>

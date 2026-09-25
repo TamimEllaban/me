@@ -329,6 +329,41 @@ export async function addGalleryItem(input: {
   }
 }
 
+export async function deleteGalleryItemsByUrl(url: string): Promise<void> {
+  const client = getPool();
+  if (!client) return;
+  try {
+    await client.query(
+      `DELETE FROM gallery_overrides
+       WHERE id IN (SELECT id FROM gallery_items WHERE url = $1)`,
+      [url],
+    );
+    await client.query(`DELETE FROM gallery_items WHERE url = $1`, [url]);
+    invalidate(["gallery_items", "gallery_overrides"]);
+  } catch (error) {
+    console.error("[db] deleteGalleryItemsByUrl failed:", error);
+  }
+}
+
+export async function deleteGalleryItem(id: string): Promise<{ ok: boolean }> {
+  const client = getPool();
+  if (!client) return { ok: false };
+  try {
+    await client.query(
+      `INSERT INTO gallery_overrides (id, category, updated_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (id) DO UPDATE SET category = EXCLUDED.category, updated_at = now()`,
+      [id, "__deleted_from_gallery__"],
+    );
+    await client.query(`DELETE FROM gallery_items WHERE id = $1`, [id]);
+    invalidate(["gallery_items", "gallery_overrides"]);
+    return { ok: true };
+  } catch (error) {
+    console.error("[db] deleteGalleryItem failed:", error);
+    return { ok: false };
+  }
+}
+
 export async function addMemory(input: {
   title: string;
   date: string;

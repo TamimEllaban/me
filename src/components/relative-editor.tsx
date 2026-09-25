@@ -23,6 +23,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { UploadBusyOverlay } from "@/components/upload-busy-overlay";
 import { addRelativeEntry, deleteRelativeEntry, updateRelativeEntry } from "@/lib/gate.functions";
 import { uploadPhotoDirect } from "@/lib/photo-upload";
 
@@ -76,6 +78,7 @@ export function RelativeFormDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
@@ -83,11 +86,13 @@ export function RelativeFormDialog({
   async function handlePhotoFile(file: File) {
     if (!file) return;
     setUploading(true);
+    setUploadProgress(0);
     setUploadMsg(null);
     try {
-      const res = await uploadPhotoDirect(file);
+      const res = await uploadPhotoDirect(file, file.name, setUploadProgress);
       if (res) {
         setImage(res);
+        setUploadProgress(100);
         setUploadMsg("تم رفع الصورة ✓");
       } else {
         setUploadMsg("حصلت مشكلة في الرفع — جرب تاني.");
@@ -148,188 +153,205 @@ export function RelativeFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[92svh] w-[calc(100%-2rem)] overflow-y-auto max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl">
-            {editing
-              ? `Edit ${person!.name}`
-              : mode === "child"
-                ? "Add a new branch"
-                : "Add a person"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "child" && parent
-              ? `فرع جديد تحت ${parent.name}.`
-              : "Add someone from the family. You can add their photo later from the Relatives page."}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="block" htmlFor="rel-name">
-              Name
-            </Label>
-            <Input
-              id="rel-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-11"
-              placeholder="الاسم"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="block" htmlFor="rel-relationship">
-                Relationship
-              </Label>
-              <Input
-                id="rel-relationship"
-                value={relationship}
-                onChange={(e) => setRelationship(e.target.value)}
-                className="h-11"
-                placeholder="بابا / ماما / خالة..."
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="block" htmlFor="rel-group">
-                Family group
-              </Label>
-              <Input
-                id="rel-group"
-                list="relative-groups"
-                value={group}
-                onChange={(e) => setGroup(e.target.value)}
-                className="h-11"
-              />
-              <datalist id="relative-groups">
-                {GROUP_SUGGESTIONS.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="block">Photo</Label>
-            {image && (
-              <img
-                src={image}
-                alt=""
-                className="max-h-48 w-full rounded-lg border border-border bg-background object-contain"
-              />
-            )}
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handlePhotoFile(file);
-                  e.target.value = "";
-                }}
-              />
-              <input
-                ref={camRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void handlePhotoFile(file);
-                  e.target.value = "";
-                }}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={uploading}
-                onClick={() => fileRef.current?.click()}
-              >
-                <Upload className="size-4" /> {uploading ? "جاري الرفع…" : "رفع صورة"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={uploading}
-                onClick={() => camRef.current?.click()}
-              >
-                <Camera className="size-4" /> الكاميرا
-              </Button>
-            </div>
-            <Input
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              className="h-11"
-              placeholder="أو االصق رابط صورة مباشر هنا"
-            />
-            {uploadMsg && <p className="text-xs text-muted-foreground">{uploadMsg}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="block" htmlFor="rel-fact">
-              One nice thing <span className="font-normal text-muted-foreground">(fact)</span>
-            </Label>
-            <Input
-              id="rel-fact"
-              value={fact}
-              onChange={(e) => setFact(e.target.value)}
-              className="h-11"
-              placeholder="حاجة حلوة عنه/عنها"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="block" htmlFor="rel-bio">
-              About them
-            </Label>
-            <Textarea
-              id="rel-bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
-              className="resize-none"
-              placeholder="كلمتين عنهم"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="block" htmlFor="rel-parent">
-              فرع من (branch under)
-            </Label>
-            <select
-              id="rel-parent"
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">— من غير فرع (at the top) —</option>
-              {relatives
-                .filter((r) => !editing || r.id !== person!.id)
-                .map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} • {r.relationship || r.group}
-                  </option>
-                ))}
-            </select>
-          </div>
-          {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={busy} className="w-full sm:w-auto">
-            {busy
-              ? "Saving…"
-              : editing
-                ? "Save changes"
+    <>
+      <UploadBusyOverlay
+        open={uploading}
+        progress={uploadProgress}
+        title="جارٍ رفع صورة الفرد"
+        subtitle="استنى ثواني؛ التطبيق مقفل مؤقتًا لحين انتهاء الرفع."
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+        <DialogContent className="max-h-[92svh] w-[calc(100%-2rem)] overflow-y-auto max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl">
+              {editing
+                ? `Edit ${person!.name}`
                 : mode === "child"
-                  ? "Add as a branch"
-                  : "Add person"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                  ? "Add a new branch"
+                  : "Add a person"}
+            </DialogTitle>
+            <DialogDescription>
+              {mode === "child" && parent
+                ? `فرع جديد تحت ${parent.name}.`
+                : "Add someone from the family. You can add their photo later from the Relatives page."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-name">
+                Name
+              </Label>
+              <Input
+                id="rel-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-11"
+                placeholder="الاسم"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="block" htmlFor="rel-relationship">
+                  Relationship
+                </Label>
+                <Input
+                  id="rel-relationship"
+                  value={relationship}
+                  onChange={(e) => setRelationship(e.target.value)}
+                  className="h-11"
+                  placeholder="بابا / ماما / خالة..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="block" htmlFor="rel-group">
+                  Family group
+                </Label>
+                <Input
+                  id="rel-group"
+                  list="relative-groups"
+                  value={group}
+                  onChange={(e) => setGroup(e.target.value)}
+                  className="h-11"
+                />
+                <datalist id="relative-groups">
+                  {GROUP_SUGGESTIONS.map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="block">Photo</Label>
+              {image && (
+                <img
+                  src={image}
+                  alt=""
+                  className="max-h-48 w-full rounded-lg border border-border bg-background object-contain"
+                />
+              )}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handlePhotoFile(file);
+                    e.target.value = "";
+                  }}
+                />
+                <input
+                  ref={camRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handlePhotoFile(file);
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <Upload className="size-4" /> {uploading ? "جاري الرفع…" : "رفع صورة"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={uploading}
+                  onClick={() => camRef.current?.click()}
+                >
+                  <Camera className="size-4" /> الكاميرا
+                </Button>
+              </div>
+              {uploading && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+                    <span>جارٍ رفع الصورة</span>
+                    <span className="tabular-nums text-primary">{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} />
+                </div>
+              )}
+              <Input
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                className="h-11"
+                placeholder="أو االصق رابط صورة مباشر هنا"
+              />
+              {uploadMsg && <p className="text-xs text-muted-foreground">{uploadMsg}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-fact">
+                One nice thing <span className="font-normal text-muted-foreground">(fact)</span>
+              </Label>
+              <Input
+                id="rel-fact"
+                value={fact}
+                onChange={(e) => setFact(e.target.value)}
+                className="h-11"
+                placeholder="حاجة حلوة عنه/عنها"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-bio">
+                About them
+              </Label>
+              <Textarea
+                id="rel-bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                className="resize-none"
+                placeholder="كلمتين عنهم"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="block" htmlFor="rel-parent">
+                فرع من (branch under)
+              </Label>
+              <select
+                id="rel-parent"
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">— من غير فرع (at the top) —</option>
+                {relatives
+                  .filter((r) => !editing || r.id !== person!.id)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} • {r.relationship || r.group}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={busy} className="w-full sm:w-auto">
+              {busy
+                ? "Saving…"
+                : editing
+                  ? "Save changes"
+                  : mode === "child"
+                    ? "Add as a branch"
+                    : "Add person"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

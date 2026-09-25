@@ -43,7 +43,7 @@ function UnlockPage() {
     setBusy(false);
   }
   return (
-    <main className="grid min-h-screen bg-background lg:grid-cols-2">
+    <main className="grid min-h-screen min-h-[100dvh] bg-background lg:grid-cols-2">
       <div className="relative min-h-[37vh] overflow-hidden lg:min-h-screen">
         <img
           src={heroImage}
@@ -60,14 +60,14 @@ function UnlockPage() {
           </p>
         </div>
       </div>
-      <div className="flex items-center justify-center px-5 py-10">
-        <form onSubmit={submit} className="w-full max-w-md animate-gentle-in">
+      <div className="flex items-center justify-center px-5 py-10 2xl:px-16">
+        <form onSubmit={submit} className="w-full max-w-md animate-gentle-in 2xl:max-w-xl">
           <div className="mb-8">
             <div className="mb-5 flex size-11 items-center justify-center rounded-full bg-secondary text-primary">
               <LockKeyhole className="size-5" />
             </div>
             <p className="mb-2 text-xs font-semibold uppercase text-primary">Family only</p>
-            <h1 className="font-display text-4xl">
+            <h1 className="font-display text-4xl 2xl:text-5xl">
               Welcome to
               <br />
               {child.name}'s World

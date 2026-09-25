@@ -39,7 +39,7 @@ function MemoriesPage() {
         title="Memories"
         text="The milestones, ordinary afternoons, and tiny details we never want to forget."
       />
-      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-7 sm:px-8">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-7 sm:px-8 2xl:px-12">
         {categories.map((category) => (
           <button
             key={category}
@@ -50,14 +50,14 @@ function MemoriesPage() {
           </button>
         ))}
       </div>
-      <div className="relative px-5 pb-10 sm:px-8">
+      <div className="relative mx-auto max-w-[90rem] px-5 pb-10 sm:px-8 2xl:px-12">
         <div className="absolute bottom-10 left-[2.45rem] top-0 w-px bg-border sm:left-[3.45rem]" />
         {shown.map((memory) => (
           <Dialog key={memory.id}>
             <DialogTrigger asChild>
-              <button className="relative mb-7 block w-full pl-10 text-left sm:pl-14">
+              <button className="relative mb-7 block w-full pl-10 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 sm:pl-14 2xl:pl-16">
                 <span className="absolute left-[0.68rem] top-5 size-3 rounded-full border-[3px] border-background bg-primary sm:left-[0.67rem]" />
-                <article className="overflow-hidden rounded-lg bg-card shadow-soft transition active:scale-[0.99] sm:grid sm:grid-cols-[14rem_1fr]">
+                <article className="overflow-hidden rounded-lg bg-card shadow-soft transition active:scale-[0.99] sm:grid sm:grid-cols-[14rem_1fr] 2xl:grid-cols-[19rem_1fr]">
                   <img
                     src={memory.image}
                     alt=""
@@ -66,7 +66,7 @@ function MemoriesPage() {
                     loading="lazy"
                     className="aspect-[4/3] h-full w-full object-cover"
                   />
-                  <div className="p-5">
+                  <div className="p-5 2xl:p-8">
                     <span className="text-xs font-semibold text-primary">
                       {memory.date} · {memory.category}
                     </span>
@@ -79,7 +79,7 @@ function MemoriesPage() {
                 </article>
               </button>
             </DialogTrigger>
-            <DialogContent className="max-h-[88svh] overflow-y-auto p-0 sm:max-w-xl">
+            <DialogContent className="max-h-[88svh] overflow-y-auto p-0 sm:max-w-xl 2xl:max-w-4xl">
               <img
                 src={memory.image}
                 alt=""
