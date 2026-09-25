@@ -90,6 +90,9 @@ function HomePage() {
           alt="A joyful child in a warm sunlit room"
           width={1200}
           height={1504}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-hero-wash" />

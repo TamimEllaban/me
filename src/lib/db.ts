@@ -310,6 +310,17 @@ export async function addGalleryItem(input: {
   const client = getPool();
   if (!client) return { ok: false };
   try {
+    // The same upload can be submitted more than once (retry, double tap, or a
+    // re-run of an earlier backfill). Reuse the existing row instead of piling
+    // up identical gallery cards.
+    const existing = await client.query<{ id: string }>(
+      `SELECT id FROM gallery_items WHERE url = $1 LIMIT 1`,
+      [input.url],
+    );
+    if (existing.rows.length) {
+      invalidate(["gallery_items"]);
+      return { ok: true, id: existing.rows[0]!.id };
+    }
     const id = `g-${sqlUuid()}`;
     await client.query(
       `INSERT INTO gallery_items (id, kind, source_name, category, date, url, thumbnail_url, created_at)

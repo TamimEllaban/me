@@ -32,13 +32,12 @@ function safeUsageError(error: unknown): { status: 502; error: string } {
 }
 
 export const getAdminPageAccess = createServerFn({ method: "GET" }).handler(async () => {
-  await requireSuperAdmin();
-  return { ok: true as const };
+  return { ok: await hasSuperAdminAccess() };
 });
 
 export const getCloudinaryStorageUsageData = createServerFn({ method: "GET" })
   .validator((data: { refresh?: boolean }) => ({ refresh: data.refresh ?? false }))
-  .handler(async ({ data }): CloudinaryStorageUsageResponse => {
+  .handler(async ({ data }): Promise<CloudinaryStorageUsageResponse> => {
     const allowed = await hasSuperAdminAccess();
     if (!allowed) {
       return { ok: false, status: 403, error: "هذه الصفحة متاحة لـ SUPER_ADMIN فقط." };

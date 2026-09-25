@@ -37,18 +37,32 @@ function formatBytes(bytes: number): string {
 }
 
 function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
+  try {
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
+  } catch {
+    // Older TV browsers ship a partial Intl implementation.
+    return String(Math.round(value * 100) / 100);
+  }
 }
 
 function formatDate(value: string | null): string {
   if (!value) return "غير متاح";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("ar-EG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(date);
+  try {
+    // dateStyle/timeStyle are unsupported on the webOS browsers we target, so
+    // spell the parts out and fall back to plain ISO when Intl is missing.
+    return new Intl.DateTimeFormat("ar-EG", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    }).format(date);
+  } catch {
+    return date.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+  }
 }
 
 function progressTone(percent: number | null): string {

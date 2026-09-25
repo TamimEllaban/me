@@ -38,6 +38,15 @@ function matches(input: string, expected: string) {
   return timingSafeEqual(left, right);
 }
 
+function optimizeChildMedia<T extends { hero_image?: string | null }>(child: T): T {
+  if (!child.hero_image) return child;
+  return { ...child, hero_image: cloudinaryImageUrl(child.hero_image, 1600) };
+}
+
+function optimizeImageMedia<T extends { image: string }>(item: T, width: number): T {
+  return { ...item, image: cloudinaryImageUrl(item.image, width) };
+}
+
 export const unlockSite = createServerFn({ method: "POST" })
   .inputValidator((data: { password: string; profileId: string }) => data)
   .handler(async ({ data }) => {
@@ -56,34 +65,40 @@ export const lockSite = createServerFn({ method: "POST" }).handler(async () => {
 
 export const getUnlockProfiles = createServerFn({ method: "GET" }).handler(async () => ({
   profiles: await getProfiles(),
-  child: await getChild(),
+  child: optimizeChildMedia(await getChild()),
   defaultPassword: process.env["SITE_PASSWORD"] ?? "",
 }));
 
 export const getHomeData = createServerFn({ method: "GET" }).handler(async () => {
   const session = await requireUnlocked();
-  const memories = await getMemories();
+  const memories = (await getMemories()).map((memory) => optimizeImageMedia(memory, 960));
   return {
-    child: await getChild(),
+    child: optimizeChildMedia(await getChild()),
     memories: memories.slice(-2),
     profileId: session.data.profileId ?? "family",
   };
 });
 export const getMemoriesData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
-  return { child: await getChild(), memories: await getMemories() };
+  return { child: optimizeChildMedia(await getChild()), memories: await getMemories() };
 });
 export const getFamilyData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
-  return { child: await getChild(), relatives: await getRelatives() };
+  return {
+    child: optimizeChildMedia(await getChild()),
+    relatives: await getRelatives(),
+  };
 });
 export const getRelativesData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
-  return { child: await getChild(), relatives: await getRelatives() };
+  return {
+    child: optimizeChildMedia(await getChild()),
+    relatives: await getRelatives(),
+  };
 });
 export const getLettersData = createServerFn({ method: "GET" }).handler(async () => {
   await requireUnlocked();
-  return { child: await getChild(), letters: await getLetters() };
+  return { child: optimizeChildMedia(await getChild()), letters: await getLetters() };
 });
 
 // --- Media gallery (from the Cloudinary library catalog) ---
@@ -97,6 +112,8 @@ export type GalleryItem = {
   category: string;
   date: string;
   url: string;
+  /** A larger, on-demand image used by the large TV dialog without bloating cards. */
+  fullUrl?: string | undefined;
   thumb: string;
   canDelete: boolean;
 };
@@ -117,6 +134,7 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       category: overrideMap.get(d.id) || d.category,
       date: d.date,
       url: d.kind === "video" ? cloudinaryVideoPlaybackUrl(d.url) : d.url,
+      fullUrl: d.kind === "image" ? cloudinaryImageUrl(d.url, 1600) : undefined,
       thumb:
         d.kind === "video"
           ? cloudinaryVideoThumbnailUrl(d.thumbnailUrl || d.url)
@@ -126,6 +144,7 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
     ...raw.map((r) => ({
       ...r,
       url: r.kind === "video" ? cloudinaryVideoPlaybackUrl(r.url) : r.url,
+      fullUrl: r.kind === "image" ? cloudinaryImageUrl(r.url, 1600) : undefined,
       thumb:
         r.kind === "video"
           ? cloudinaryVideoThumbnailUrl(r.thumb || r.url)
@@ -134,10 +153,19 @@ export const getGalleryData = createServerFn({ method: "GET" }).handler(async ()
       canDelete: true,
     })),
   ];
+  const seenMediaUrls = new Set<string>();
   const items: GalleryItem[] = allRaw
-    .filter((item) => overrideMap.get(item.id) !== HIDDEN_GALLERY_CATEGORY)
+    .filter((item) => {
+      if (overrideMap.get(item.id) === HIDDEN_GALLERY_CATEGORY) return false;
+      // Older backfills inserted the same photo more than once; show it once.
+      if (seenMediaUrls.has(item.url)) return false;
+      seenMediaUrls.add(item.url);
+      return true;
+    })
     .map((item) => ({
       ...item,
+      fullUrl:
+        item.kind === "image" ? item.fullUrl || cloudinaryImageUrl(item.url, 1600) : undefined,
       thumb:
         item.thumb ||
         (item.kind === "video"

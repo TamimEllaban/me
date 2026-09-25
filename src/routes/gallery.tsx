@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import useEmblaCarousel, { type EmblaCarouselType } from "embla-carousel-react";
+import useEmblaCarousel from "embla-carousel-react";
+import type { EmblaCarouselType } from "embla-carousel";
 import {
   ArrowRightLeft,
   Calendar,
@@ -13,7 +14,7 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useId, useState } from "react";
 import { DeleteGalleryItemButton } from "@/components/delete-gallery-item-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { PageIntro, WorldShell } from "@/components/world-shell";
 import { getGalleryData, moveGalleryItemCategory, type GalleryItem } from "@/lib/gate.functions";
+
+const TvVideoPlayer = lazy(() =>
+  import("@/components/tv-video-player").then((module) => ({ default: module.TvVideoPlayer })),
+);
 
 export const Route = createFileRoute("/gallery")({
   loader: () => getGalleryData(),
@@ -92,6 +97,7 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
                 src={item.thumb}
                 alt={title}
                 loading="lazy"
+                decoding="async"
                 onError={() => setThumbnailFailed(true)}
                 className="size-full object-cover transition duration-300 group-hover:scale-[1.04]"
               />
@@ -148,21 +154,21 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
       <DialogContent className="max-h-[92dvh] w-[94vw] max-w-2xl overflow-y-auto rounded-2xl border-border/80 bg-card p-0 shadow-2xl 2xl:max-w-6xl [&>button:last-child]:right-3 [&>button:last-child]:top-3 [&>button:last-child]:size-10 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/65 [&>button:last-child]:text-white [&>button:last-child]:opacity-90 [&>button:last-child]:backdrop-blur-md [&>button:last-child]:hover:bg-black/80 sm:[&>button:last-child]:right-4 sm:[&>button:last-child]:top-4">
         <div className="relative flex max-h-[58dvh] w-full items-center justify-center overflow-hidden bg-black/95 2xl:max-h-[72dvh]">
           {isVideo ? (
-            <video
-              src={item.url}
-              poster={item.thumb}
-              controls
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              className="max-h-[58dvh] w-full object-contain 2xl:max-h-[72dvh]"
-            />
+            <Suspense
+              fallback={
+                <div className="flex min-h-[18rem] w-full items-center justify-center bg-black text-sm text-white">
+                  جارٍ تجهيز المشغل…
+                </div>
+              }
+            >
+              <TvVideoPlayer src={item.url} poster={item.thumb} title={title} loop />
+            </Suspense>
           ) : (
             <img
-              src={item.url}
+              src={item.fullUrl || item.url}
               alt={title}
+              loading="lazy"
+              decoding="async"
               className="max-h-[58dvh] w-full object-contain 2xl:max-h-[72dvh]"
             />
           )}

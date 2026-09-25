@@ -50,6 +50,9 @@ function UnlockPage() {
           alt="A happy child in a sunlit room"
           width={1200}
           height={1504}
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-hero-wash" />

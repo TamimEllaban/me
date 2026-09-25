@@ -64,6 +64,7 @@ function MemoriesPage() {
                     width={1200}
                     height={912}
                     loading="lazy"
+                    decoding="async"
                     className="aspect-[4/3] h-full w-full object-cover"
                   />
                   <div className="p-5 2xl:p-8">
@@ -85,6 +86,8 @@ function MemoriesPage() {
                 alt=""
                 width={1200}
                 height={912}
+                loading="lazy"
+                decoding="async"
                 className="max-h-[60vh] w-full bg-background object-contain"
               />
               <div className="p-6">

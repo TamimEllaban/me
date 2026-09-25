@@ -17,7 +17,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageIntro, WorldShell } from "@/components/world-shell";
+import { DEFAULT_RELATIVE_IMAGE } from "@/lib/default-relative-image";
 import { getRelativesData } from "@/lib/gate.functions";
+
+function relativeImageUrl(image: string | null | undefined) {
+  return image?.trim() || DEFAULT_RELATIVE_IMAGE;
+}
+
+function applyImageFallback(event: { currentTarget: HTMLImageElement }) {
+  const img = event.currentTarget;
+  if (img.dataset["fallbackApplied"] === "1") return;
+  img.dataset["fallbackApplied"] = "1";
+  img.src = DEFAULT_RELATIVE_IMAGE;
+}
 
 export const Route = createFileRoute("/relatives")({
   loader: () => getRelativesData(),
@@ -104,11 +116,13 @@ function RelativesPage() {
                 <DialogTrigger asChild>
                   <button className="min-h-64 rounded-lg border border-border bg-card p-3 text-left shadow-soft transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 active:scale-[.98] 2xl:min-h-80 2xl:p-5">
                     <img
-                      src={person.image}
+                      src={relativeImageUrl(person.image)}
                       alt=""
                       width={1200}
                       height={912}
                       loading="lazy"
+                      decoding="async"
+                      onError={applyImageFallback}
                       className="aspect-square w-full rounded-md object-cover"
                     />
                     <h2 className="mt-3 truncate font-display text-xl">{person.name}</h2>
@@ -120,10 +134,13 @@ function RelativesPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-sm 2xl:max-w-3xl">
                   <img
-                    src={person.image}
+                    src={relativeImageUrl(person.image)}
                     alt=""
                     width={1200}
                     height={912}
+                    loading="lazy"
+                    decoding="async"
+                    onError={applyImageFallback}
                     className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
                   />
                   <DialogTitle className="font-display text-3xl">{person.name}</DialogTitle>

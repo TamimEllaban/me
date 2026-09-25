@@ -14,20 +14,27 @@ import appCss from "../styles.css?url";
 import legacyTvCss from "../legacy-tv.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartoonCarLoader } from "../components/cartoon-loader";
-import { installLegacyCustomEvent } from "../legacy-tv-polyfills";
+import {
+  installLegacyCustomEvent,
+  installLegacyWebPlatformPolyfills,
+} from "../legacy-tv-polyfills";
 
 if (typeof window !== "undefined") {
   installLegacyCustomEvent();
+  installLegacyWebPlatformPolyfills();
 }
 
 const legacyTvBootstrap = `(function(){try{var d=document.documentElement;var c=window.CSS&&CSS.supports;var vars=!!(c&&c("--legacy-tv","0"));var grid=!!(c&&c("display","grid"));var color=!!(c&&c("color","oklch(50% 0.1 20)"));var layer=false;var s=document.createElement("style");s.type="text/css";s.textContent="@layer legacy-tv-test { .legacy-tv-test { color: red; } }";var h=document.getElementsByTagName("head")[0];if(h){h.appendChild(s);layer=!!(s.sheet&&s.sheet.cssRules&&s.sheet.cssRules.length);s.parentNode.removeChild(s);}if(vars&&grid&&color&&layer){d.removeAttribute("data-tv-legacy");}else{d.setAttribute("data-tv-legacy","true");}}catch(e){document.documentElement.setAttribute("data-tv-legacy","true");}}());`;
 const legacyTvNoModuleFix = `!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();`;
+const deferredFontStylesheet =
+  "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap";
+const deferredFontBootstrap = `(function(){var l=document.getElementById("tv-fonts");if(!l)return;function a(){l.media="all"}try{if(l.sheet){a();return}}catch(e){}l.onload=a;}());`;
 declare const __LEGACY_ASSET_VERSION__: string;
 const legacyAssetVersion =
   typeof __LEGACY_ASSET_VERSION__ === "string" ? __LEGACY_ASSET_VERSION__ : "dev";
 const legacyTvPolyfillUrl = `/assets/polyfills-legacy.js?v=${legacyAssetVersion}`;
 const legacyTvEntryUrl = `/assets/app-legacy.js?v=${legacyAssetVersion}`;
-const legacyTvAutoFallback = `(function(){setTimeout(function(){if(window.__legacyTvStarted||window.__tamimHydrated)return;window.__legacyTvStarted=true;function boot(){if(window.System){System.import("${legacyTvEntryUrl}");}}if(window.System){boot();return;}var s=document.createElement("script");s.src="${legacyTvPolyfillUrl}";s.onload=boot;s.onerror=function(){window.__legacyTvStarted=false;};document.head.appendChild(s);},5000);}());`;
+const legacyTvAutoFallback = `(function(){if(document.documentElement.getAttribute("data-tv-legacy")!=="true")return;setTimeout(function(){if(window.__legacyTvStarted||window.__tamimHydrated)return;window.__legacyTvStarted=true;function boot(){if(window.System){System.import("${legacyTvEntryUrl}");}}if(window.System){boot();return;}var s=document.createElement("script");s.src="${legacyTvPolyfillUrl}";s.onload=boot;s.onerror=function(){window.__legacyTvStarted=false;};document.head.appendChild(s);},1500);}());`;
 
 function NotFoundComponent() {
   return (
@@ -116,10 +123,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "preconnect", href: "https://res.cloudinary.com" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap",
-      },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
@@ -136,6 +139,8 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: legacyTvBootstrap }} />
         <HeadContent />
+        <link id="tv-fonts" rel="stylesheet" href={deferredFontStylesheet} media="print" />
+        <script dangerouslySetInnerHTML={{ __html: deferredFontBootstrap }} />
       </head>
       <body>
         {children}

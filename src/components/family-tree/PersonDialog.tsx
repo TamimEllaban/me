@@ -34,6 +34,8 @@ export function PersonDialog({
             alt=""
             width={1200}
             height={912}
+            loading="lazy"
+            decoding="async"
             className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
           />
         ) : (

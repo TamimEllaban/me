@@ -634,7 +634,7 @@ function PhotoFlow({
                         src={item.previewUrl}
                         muted
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         className="size-full object-cover"
                       />
                       <span className="pointer-events-none absolute inset-0 grid place-items-center bg-black/25 text-white">
@@ -756,15 +756,21 @@ function PhotoFlow({
           {firstMedia ? (
             <div className="relative size-24 shrink-0 overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:size-28 2xl:size-32">
               {firstMedia.kind === "video" ? (
-                <video
+                <img
                   src={firstMedia.thumbnailUrl}
-                  muted
-                  playsInline
-                  preload="metadata"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="size-full object-cover"
                 />
               ) : (
-                <img src={firstMedia.url} alt="" className="size-full object-cover" />
+                <img
+                  src={firstMedia.url}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="size-full object-cover"
+                />
               )}
               {firstMedia.kind === "video" && (
                 <span className="absolute inset-0 grid place-items-center bg-black/25 text-white">

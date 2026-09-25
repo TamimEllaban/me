@@ -60,7 +60,7 @@ export function createFamilyUploadTicket(
     public_id: publicId,
     timestamp: String(timestamp),
   };
-  if (transformation) params.transformation = transformation;
+  if (transformation) params["transformation"] = transformation;
   const query = Object.keys(params)
     .sort()
     .map((k) => `${k}=${params[k]}`)
@@ -177,8 +177,8 @@ export async function listFamilyImages(): Promise<
       publicId: r.public_id,
       url: r.secure_url,
       kind: r.resource_type === "video" ? ("video" as const) : ("image" as const),
-      width: r.width,
-      height: r.height,
+      ...(typeof r.width === "number" ? { width: r.width } : {}),
+      ...(typeof r.height === "number" ? { height: r.height } : {}),
     });
     return [...(images.resources ?? []), ...(videos.resources ?? [])].map(mapResource);
   } catch (error) {

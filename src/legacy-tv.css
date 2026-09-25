@@ -1871,3 +1871,357 @@
   color: #f8eadb;
   border-color: #76513d;
 }
+
+/* TV video player. These rules intentionally avoid Grid, CSS variables,
+   min(), and other syntax that made the original fallback disappear on
+   older webOS engines. */
+[data-tv-legacy="true"] .tv-video-player {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  background: #090909;
+  color: #ffffff;
+}
+
+[data-tv-legacy="true"] .tv-video-player__stage {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%;
+  overflow: hidden;
+  background: #000000;
+}
+
+[data-tv-legacy="true"] .tv-video-player__stage video,
+[data-tv-legacy="true"] .tv-video-player__poster {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+[data-tv-legacy="true"] .tv-video-player__stage video {
+  object-fit: contain;
+  background: #000000;
+}
+
+[data-tv-legacy="true"] .tv-video-player__poster {
+  background-color: #181818;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+[data-tv-legacy="true"] .tv-video-player__center-button,
+[data-tv-legacy="true"] .tv-video-player__close-theater,
+[data-tv-legacy="true"] .tv-video-player__control-button {
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+[data-tv-legacy="true"] .tv-video-player__center-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-top: -2.25rem;
+  margin-left: -2.25rem;
+  background: rgba(0, 0, 0, 0.68);
+  color: #ffffff;
+}
+
+[data-tv-legacy="true"] .tv-video-player__center-button:hover,
+[data-tv-legacy="true"] .tv-video-player__center-button:focus {
+  background: #bd3d2b;
+}
+
+[data-tv-legacy="true"] .tv-video-player__center-icon {
+  width: 2rem;
+  height: 2rem;
+  margin-left: 0.2rem;
+}
+
+[data-tv-legacy="true"] .tv-video-player__close-theater {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
+}
+
+[data-tv-legacy="true"] .tv-video-player__loading,
+[data-tv-legacy="true"] .tv-video-player__error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80%;
+  margin-top: -1rem;
+  color: #ffffff;
+  font-size: 1rem;
+  text-align: center;
+}
+
+[data-tv-legacy="true"] .tv-video-player__controls {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  min-height: 3.75rem;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  background: #151515;
+  color: #ffffff;
+}
+
+[data-tv-legacy="true"] .tv-video-player__control-button {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 0 auto;
+  -ms-flex: 0 0 auto;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: 0.35rem;
+  background: transparent;
+  color: #ffffff;
+}
+
+[data-tv-legacy="true"] .tv-video-player__control-button:hover,
+[data-tv-legacy="true"] .tv-video-player__control-button:focus {
+  background: #3b201b;
+}
+
+[data-tv-legacy="true"] .tv-video-player__control-button svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+[data-tv-legacy="true"] .tv-video-player__time {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 0 auto;
+  -ms-flex: 0 0 auto;
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  margin-right: 0.5rem;
+  color: #f5e9dc;
+  font-size: 0.8rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+[data-tv-legacy="true"] .tv-video-player__progress,
+[data-tv-legacy="true"] .tv-video-player__volume {
+  min-width: 3rem;
+  cursor: pointer;
+}
+
+[data-tv-legacy="true"] .tv-video-player__progress {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+  margin-right: 0.5rem;
+}
+
+[data-tv-legacy="true"] .tv-video-player__volume {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 1 8rem;
+  -ms-flex: 0 1 8rem;
+  flex: 0 1 8rem;
+  margin-right: 0.5rem;
+}
+
+[data-tv-legacy="true"] .tv-video-player--theater,
+[data-tv-legacy="true"] .tv-video-player--fullscreen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 300;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  -webkit-box-orient: vertical;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  border-radius: 0;
+  background: #000000;
+}
+
+[data-tv-legacy="true"] .tv-video-player--theater .tv-video-player__stage,
+[data-tv-legacy="true"] .tv-video-player--fullscreen .tv-video-player__stage {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 auto;
+  -ms-flex: 1 1 auto;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+[data-tv-legacy="true"] .tv-video-player--theater .tv-video-player__controls,
+[data-tv-legacy="true"] .tv-video-player--fullscreen .tv-video-player__controls {
+  -webkit-box-flex: 0;
+  -webkit-flex: 0 0 auto;
+  -ms-flex: 0 0 auto;
+  flex: 0 0 auto;
+}
+
+[data-tv-legacy="true"] .tv-video-player:focus,
+[data-tv-legacy="true"] .tv-video-player button:focus,
+[data-tv-legacy="true"] .tv-video-player input:focus {
+  outline: 3px solid #f2b46e;
+  outline-offset: 2px;
+}
+
+@media (min-width: 1280px) {
+  [data-tv-legacy="true"] {
+    font-size: 17px;
+  }
+
+  [data-tv-legacy="true"] .site-header-inner {
+    height: 5.25rem;
+    padding-right: 4rem;
+    padding-left: 4rem;
+  }
+
+  [data-tv-legacy="true"] .site-main {
+    max-width: 120rem;
+    padding-bottom: 9rem;
+  }
+
+  [data-tv-legacy="true"] .site-nav {
+    right: 50%;
+    bottom: 1.5rem;
+    left: auto;
+    width: 64rem;
+    max-width: 94%;
+    overflow: hidden;
+    border: 1px solid #e8d6c5;
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 28px rgba(35, 20, 14, 0.2);
+  }
+
+  [data-tv-legacy="true"] .site-nav-inner {
+    width: 100%;
+    max-width: none;
+    height: 5.5rem;
+  }
+
+  [data-tv-legacy="true"] .site-nav-link {
+    min-height: 4.5rem;
+    font-size: 0.9rem;
+  }
+
+  [data-tv-legacy="true"] .site-nav-link svg {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  [data-tv-legacy="true"] [role="dialog"] {
+    top: 3%;
+    right: 4%;
+    bottom: 3%;
+    left: 4%;
+    width: 92%;
+    max-width: 120rem;
+    max-height: 94vh;
+    padding: 2rem;
+  }
+
+  [data-tv-legacy="true"] [role="dialog"] img {
+    width: 100%;
+    max-height: 76vh;
+    object-fit: contain;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player {
+    border-radius: 1.25rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__controls {
+    min-height: 4.5rem;
+    padding: 0.8rem 1.15rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__control-button {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__control-button svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__time {
+    min-width: 7rem;
+    font-size: 1rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__center-button {
+    width: 5.5rem;
+    height: 5.5rem;
+    margin-top: -2.75rem;
+    margin-left: -2.75rem;
+  }
+
+  [data-tv-legacy="true"] .tv-video-player__center-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+@media (min-width: 1920px) {
+  [data-tv-legacy="true"] .site-header-inner {
+    padding-right: 6rem;
+    padding-left: 6rem;
+  }
+
+  [data-tv-legacy="true"] .site-nav {
+    bottom: 2rem;
+    width: 76rem;
+  }
+
+  [data-tv-legacy="true"] .site-nav-inner {
+    height: 6.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  [data-tv-legacy="true"] {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 2200px) {
+  [data-tv-legacy="true"] {
+    font-size: 20px;
+  }
+}

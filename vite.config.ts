@@ -8,6 +8,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { transformSync } from "@babel/core";
 import babelPresetEnv from "@babel/preset-env";
+import { minify } from "terser";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import legacy from "@vitejs/plugin-legacy";
 import type { Plugin } from "vite";
@@ -39,6 +40,16 @@ function transpileLegacyPolyfill(code: string): string {
   });
 
   return result?.code ?? code;
+}
+
+async function minifyLegacyCode(code: string): Promise<string> {
+  const result = await minify(code, {
+    ecma: 5,
+    compress: { passes: 2 },
+    mangle: true,
+    format: { comments: false },
+  });
+  return result.code ?? code;
 }
 
 function clientOnly(plugin: LegacyPlugin): LegacyPlugin {
@@ -98,8 +109,8 @@ const legacyPlugins = legacy({
     "core-js/modules/web.url-search-params.js",
     "whatwg-fetch",
     "abort-controller/polyfill",
-    "text-encoding",
-    "web-streams-polyfill/polyfill/es5",
+    // TextDecoder/TextEncoder/ReadableStream are covered by the small ponyfill
+    // in src/legacy-tv-polyfills.ts; the full packages added ~460 KB.
     "resize-observer-polyfill",
     "intersection-observer",
     "closest-polyfill",
@@ -127,6 +138,32 @@ const legacyPlugins = legacy({
     "core-js/modules/es.string.pad-end.js",
   ],
 }).map(clientOnly);
+
+function minifyLegacyBundles(): Plugin {
+  return {
+    name: "minify-legacy-bundles",
+    enforce: "post",
+    applyToEnvironment(environment: Environment) {
+      return environment.name === "client";
+    },
+    async writeBundle(options, bundle) {
+      await Promise.all(
+        Object.values(bundle)
+          .filter(
+            (output): output is Extract<(typeof bundle)[string], { type: "chunk" }> =>
+              output.type === "chunk" && output.fileName.includes("-legacy"),
+          )
+          .map(async (output) => {
+            const code = await minifyLegacyCode(output.code);
+            output.code = code;
+            if (options.dir) {
+              await writeFile(resolve(options.dir, output.fileName), code, "utf8");
+            }
+          }),
+      );
+    },
+  };
+}
 
 function installLegacyOutputsInClientEnvironment(): Plugin {
   return {
@@ -185,7 +222,7 @@ function installLegacyOutputsInClientEnvironment(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [...legacyPlugins, installLegacyOutputsInClientEnvironment()],
+  plugins: [...legacyPlugins, minifyLegacyBundles(), installLegacyOutputsInClientEnvironment()],
   vite: {
     define: {
       __LEGACY_ASSET_VERSION__: JSON.stringify(legacyAssetVersion),
@@ -196,6 +233,26 @@ export default defineConfig({
   },
   nitro: {
     inlineDynamicImports: true,
+    routeRules: {
+      // These aliases are intentionally stable for the legacy loader. Keep
+      // them revalidated so a retry of the same commit cannot pin an old body
+      // in a browser/CDN for a year; hashed assets keep the immutable rule.
+      "/assets/app-legacy.js": {
+        headers: { "cache-control": "public, max-age=0, must-revalidate" },
+      },
+      "/assets/polyfills-legacy.js": {
+        headers: { "cache-control": "public, max-age=0, must-revalidate" },
+      },
+      "/favicon.svg": {
+        headers: { "cache-control": "public, max-age=86400, must-revalidate" },
+      },
+      "/favicon.ico": {
+        headers: { "cache-control": "public, max-age=86400, must-revalidate" },
+      },
+      "/robots.txt": {
+        headers: { "cache-control": "public, max-age=3600, must-revalidate" },
+      },
+    },
     rolldownConfig: {
       output: {
         codeSplitting: false,

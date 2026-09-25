@@ -735,3 +735,267 @@
     opacity: 1;
   }
 }
+
+/* TV video player: a wide, remote-friendly player with a real theater-mode
+   fallback for browsers that expose no Fullscreen API. */
+.tv-video-player {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: #090909;
+  color: #ffffff;
+}
+.tv-video-player__stage {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%;
+  overflow: hidden;
+  background: #000000;
+}
+.tv-video-player__stage video,
+.tv-video-player__poster {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.tv-video-player__stage video {
+  object-fit: contain;
+  background: #000000;
+}
+.tv-video-player__poster {
+  background-color: #181818;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.tv-video-player__center-button,
+.tv-video-player__close-theater,
+.tv-video-player__control-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tv-video-player__center-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4.5rem;
+  height: 4.5rem;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.68);
+  color: #ffffff;
+}
+.tv-video-player__center-button:hover,
+.tv-video-player__center-button:focus {
+  background: #bd3d2b;
+}
+.tv-video-player__center-icon {
+  width: 2rem;
+  height: 2rem;
+  margin-left: 0.2rem;
+}
+.tv-video-player__close-theater {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 3rem;
+  height: 3rem;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
+}
+.tv-video-player__loading,
+.tv-video-player__error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 85%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-size: 1rem;
+  text-align: center;
+}
+.tv-video-player__controls {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  background: #151515;
+  color: #ffffff;
+}
+.tv-video-player__control-button {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  background: transparent;
+  color: #ffffff;
+}
+.tv-video-player__control-button:hover,
+.tv-video-player__control-button:focus {
+  background: #3b201b;
+}
+.tv-video-player__control-button svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+.tv-video-player__time {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  color: #f5e9dc;
+  font-size: 0.8rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.tv-video-player__progress,
+.tv-video-player__volume {
+  min-width: 3rem;
+  accent-color: #e26b4e;
+}
+.tv-video-player__progress {
+  flex: 1 1 auto;
+}
+.tv-video-player__volume {
+  flex: 0 1 8rem;
+}
+.tv-video-player--theater,
+.tv-video-player--fullscreen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  display: flex;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  flex-direction: column;
+  border-radius: 0;
+  background: #000000;
+}
+.tv-video-player--theater .tv-video-player__stage,
+.tv-video-player--fullscreen .tv-video-player__stage {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  padding-bottom: 0;
+}
+.tv-video-player--theater .tv-video-player__controls,
+.tv-video-player--fullscreen .tv-video-player__controls {
+  flex: 0 0 auto;
+}
+.tv-video-player:focus,
+.tv-video-player button:focus,
+.tv-video-player input:focus {
+  outline: 3px solid #f2b46e;
+  outline-offset: 2px;
+}
+@media (min-width: 1280px) {
+  .tv-video-player {
+    border-radius: 1.25rem;
+  }
+  .tv-video-player__controls {
+    min-height: 4.5rem;
+    gap: 0.85rem;
+    padding: 0.8rem 1.15rem;
+  }
+  .tv-video-player__control-button {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+  .tv-video-player__control-button svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+  .tv-video-player__time {
+    min-width: 7rem;
+    font-size: 1rem;
+  }
+  .tv-video-player__center-button {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+  .tv-video-player__center-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+/* A 1080p television is viewed from farther away than a desktop monitor.
+   Increase the usable reading size before the 4K breakpoint. */
+@media (min-width: 1280px) {
+  :root {
+    font-size: 17px;
+  }
+
+  .site-header-inner {
+    height: 5.25rem;
+    padding-right: 4rem;
+    padding-left: 4rem;
+  }
+
+  .site-main {
+    padding-bottom: 9rem;
+  }
+
+  .site-nav {
+    width: min(76rem, calc(100% - 4rem));
+    max-width: 76rem;
+  }
+
+  .site-nav-inner {
+    max-width: none;
+    height: 6rem;
+  }
+
+  .site-nav-link {
+    min-height: 4.75rem;
+    font-size: 0.9rem;
+  }
+
+  [role="dialog"] {
+    width: 92vw !important;
+    max-width: 90rem !important;
+    max-height: 90vh;
+  }
+}
+
+@media (min-width: 1920px) {
+  .site-header-inner {
+    padding-right: 6rem;
+    padding-left: 6rem;
+  }
+
+  .site-nav {
+    bottom: 2rem;
+    width: min(88rem, calc(100% - 6rem));
+    max-width: 88rem;
+  }
+
+  .site-nav-inner {
+    height: 6.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  :root {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 2200px) {
+  :root {
+    font-size: 20px;
+  }
+}
