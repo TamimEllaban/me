@@ -162,7 +162,7 @@ export function RelativeFormDialog({
       />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent className="max-h-[92svh] w-[calc(100%-2rem)] overflow-y-auto max-w-md">
+        <DialogContent className="max-h-[92svh] w-[calc(100%-2rem)] overflow-y-auto max-w-md sm:w-full sm:max-w-lg 2xl:max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-display text-2xl">
               {editing

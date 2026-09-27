@@ -175,7 +175,7 @@ export function CartoonCarLoader({
         </div>
 
         {/* Animated Racetrack Road */}
-        <div className="w-48 sm:w-56 mt-[-4px] overflow-hidden">
+        <div className="w-48 sm:w-56 mt-[-0.25rem] overflow-hidden">
           <svg viewBox="0 0 200 12" className="w-full h-3">
             {/* Road Base */}
             <line x1="0" y1="6" x2="200" y2="6" stroke="#CBD5E1" strokeWidth="3" />

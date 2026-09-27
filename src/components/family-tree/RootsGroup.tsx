@@ -49,7 +49,7 @@ export const RootsGroup = memo(function RootsGroup({
             fontWeight={700}
             fontFamily="var(--font-display), serif"
             fill={night ? "#ffe9b8" : "#8b5a2b"}
-            style={{ letterSpacing: "2px" }}
+            style={{ letterSpacing: "0.125rem" }}
           >
             الجذور
           </text>

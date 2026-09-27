@@ -21,16 +21,16 @@
 @theme {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --shadow-soft: 0 1px 2px oklch(0.2 0.03 60 / 0.05), 0 6px 18px -6px oklch(0.2 0.03 60 / 0.1);
+  --shadow-soft: 0 0.0625rem 0.125rem oklch(0.2 0.03 60 / 0.05), 0 0.375rem 1.125rem -0.375rem oklch(0.2 0.03 60 / 0.1);
   --shadow-keepsake:
-    0 8px 28px -8px oklch(0.2 0.03 60 / 0.22), 0 2px 8px -4px oklch(0.2 0.03 60 / 0.12);
+    0 0.5rem 1.75rem -0.5rem oklch(0.2 0.03 60 / 0.22), 0 0.125rem 0.5rem -0.25rem oklch(0.2 0.03 60 / 0.12);
   --animate-gentle-in: gentle-in 0.6s ease-out both;
   --animate-soft-rise: gentle-in 0.7s ease-out both;
 
   @keyframes gentle-in {
     from {
       opacity: 0;
-      transform: translateY(10px) scale(0.985);
+      transform: translateY(0.625rem) scale(0.985);
     }
     to {
       opacity: 1;
@@ -44,13 +44,13 @@
       transform: translateY(0) rotate(0deg);
     }
     25% {
-      transform: translateY(-3px) rotate(-1.5deg);
+      transform: translateY(-0.1875rem) rotate(-1.5deg);
     }
     50% {
-      transform: translateY(1px) rotate(0.5deg);
+      transform: translateY(0.0625rem) rotate(0.5deg);
     }
     75% {
-      transform: translateY(-2px) rotate(-0.5deg);
+      transform: translateY(-0.125rem) rotate(-0.5deg);
     }
   }
 
@@ -70,11 +70,11 @@
     }
     50% {
       opacity: 0.4;
-      transform: translate(-14px, -6px) scale(1);
+      transform: translate(-0.875rem, -0.375rem) scale(1);
     }
     100% {
       opacity: 0;
-      transform: translate(-28px, -12px) scale(1.5);
+      transform: translate(-1.75rem, -0.75rem) scale(1.5);
     }
   }
 
@@ -86,11 +86,11 @@
     }
     55%,
     75% {
-      transform: translateX(2.5px);
+      transform: translateX(0.15625rem);
     }
     85%,
     95% {
-      transform: translateX(-1.5px);
+      transform: translateX(-0.09375rem);
     }
   }
 }
@@ -103,13 +103,13 @@
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
+  --radius-4xl: calc(var(--radius) + 1rem);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -228,7 +228,7 @@
   }
 
   html {
-    min-width: 320px;
+    min-width: 20rem;
     min-height: 100%;
     background: var(--background);
     scroll-behavior: smooth;
@@ -237,7 +237,7 @@
   }
 
   body {
-    min-width: 320px;
+    min-width: 20rem;
     min-height: 100vh;
     min-height: 100dvh;
     overflow-x: hidden;
@@ -248,16 +248,15 @@
   }
 
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 3px solid color-mix(in oklab, var(--ring) 68%, transparent);
-    outline-offset: 3px;
+    outline: 0.1875rem solid color-mix(in oklab, var(--ring) 68%, transparent);
+    outline-offset: 0.1875rem;
   }
 }
 
-/* Large-screen / living-room TV layout. A 52-inch LG commonly exposes a
-   1920×1080 browser viewport, so the desktop breakpoint alone is not enough. */
-@media (min-width: 1600px) {
+/* Large-screen / living-room TV layout. Responsive scaling across viewports. */
+@media (min-width: 100rem) {
   :root {
-    font-size: 18px;
+    font-size: 112.5%;
   }
 
   .site-frame {
@@ -278,9 +277,15 @@
   }
 }
 
-@media (min-width: 2200px) {
+@media (min-width: 137.5rem) {
   :root {
-    font-size: 20px;
+    font-size: 125%;
+  }
+}
+
+@media (min-width: 175rem) {
+  :root {
+    font-size: 137.5%;
   }
 }
 
@@ -312,14 +317,14 @@
   margin: 0;
   padding: 0;
   position: relative;
-  padding-top: 22px;
+  padding-top: 1.375rem;
 }
 
 .ftree li {
   list-style: none;
   position: relative;
   text-align: center;
-  padding: 22px 8px 0;
+  padding: 1.375rem 0.5rem 0;
 }
 
 .ftree li::before,
@@ -329,15 +334,15 @@
   top: 0;
   right: 50%;
   width: 50%;
-  height: 22px;
-  border-top: 2px solid var(--ftree-line);
+  height: 1.375rem;
+  border-top: 0.125rem solid var(--ftree-line);
   pointer-events: none;
 }
 
 .ftree li::after {
   right: auto;
   left: 50%;
-  border-left: 2px solid var(--ftree-line);
+  border-left: 0.125rem solid var(--ftree-line);
 }
 
 .ftree li:only-child::before,
@@ -355,12 +360,12 @@
 }
 
 .ftree li:last-child::before {
-  border-right: 2px solid var(--ftree-line);
-  border-radius: 0 12px 0 0;
+  border-right: 0.125rem solid var(--ftree-line);
+  border-radius: 0 0.75rem 0 0;
 }
 
 .ftree li:first-child::after {
-  border-radius: 12px 0 0 0;
+  border-radius: 0.75rem 0 0 0;
 }
 
 .ftree ul ul::before {
@@ -369,8 +374,8 @@
   top: 0;
   left: 50%;
   width: 0;
-  height: 22px;
-  border-left: 2px solid var(--ftree-line);
+  height: 1.375rem;
+  border-left: 0.125rem solid var(--ftree-line);
   pointer-events: none;
 }
 
@@ -387,17 +392,17 @@
 
 .mftree ul ul {
   position: relative;
-  margin-top: 14px;
-  padding-right: 30px;
+  margin-top: 0.875rem;
+  padding-right: 1.875rem;
 }
 
 .mftree ul ul::before {
   content: "";
   position: absolute;
-  top: 6px;
-  bottom: 8px;
-  right: 12px;
-  width: 2px;
+  top: 0.375rem;
+  bottom: 0.5rem;
+  right: 0.75rem;
+  width: 0.125rem;
   background: var(--ftree-line);
   pointer-events: none;
 }
@@ -409,7 +414,7 @@
 .mftree li {
   list-style: none;
   position: relative;
-  padding-right: 30px;
+  padding-right: 1.875rem;
 }
 
 .mftree > ul > li {
@@ -420,11 +425,11 @@
   content: "";
   position: absolute;
   top: 50%;
-  right: 12px;
-  width: 18px;
-  height: 2px;
-  margin-top: -1px;
-  border-radius: 2px;
+  right: 0.75rem;
+  width: 1.125rem;
+  height: 0.125rem;
+  margin-top: -0.0625rem;
+  border-radius: 0.125rem;
   background: var(--ftree-line);
   pointer-events: none;
   z-index: -1;
@@ -445,7 +450,7 @@
   animation: gentle-in 0.5s ease-out both;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 64rem) {
   .ftree-row {
     display: flex;
     justify-content: center;
@@ -462,51 +467,51 @@
 /* Mobile / small screens */
 .scene-viewport,
 .scene-skeleton {
-  height: min(70svh, 680px);
-  min-height: 380px;
+  height: min(70svh, 42.5rem);
+  min-height: 23.75rem;
 }
 
 /* Tablet */
-@media (min-width: 768px) {
+@media (min-width: 48rem) {
   .scene-viewport,
   .scene-skeleton {
-    height: min(78svh, 860px);
-    min-height: 500px;
+    height: min(78svh, 53.75rem);
+    min-height: 31.25rem;
   }
 }
 
 /* Laptop / desktop — fill most of the viewport height */
-@media (min-width: 1024px) {
+@media (min-width: 64rem) {
   .scene-viewport,
   .scene-skeleton {
     height: calc(100svh - 10rem);
-    min-height: 600px;
-    max-height: 1100px;
+    min-height: 37.5rem;
+    max-height: 68.75rem;
   }
 }
 
 /* TV / ultra-wide — a bit more space */
-@media (min-width: 1600px) {
+@media (min-width: 100rem) {
   .scene-viewport,
   .scene-skeleton {
     height: calc(100svh - 8rem);
-    max-height: 1400px;
+    max-height: 87.5rem;
   }
 }
 
 /* Full-bleed wrapper — on mobile keeps normal padding,
-   on large screens stretches edge-to-edge (100vw). */
+   on large screens stretches edge-to-edge (100vw) centered. */
 .family-tree-fullbleed {
   margin-inline: auto;
   width: 100%;
   max-width: 72rem;
   padding-inline: 1rem;
 }
-@media (min-width: 1024px) {
+@media (min-width: 64rem) {
   .family-tree-fullbleed {
     max-width: none;
     width: 100vw;
-    margin-inline: calc((100vw - 72rem) / -2);
+    margin-inline: calc((100vw - 100%) / -2);
     padding-inline: max(0.5rem, 1vw);
     overflow-x: clip;
   }
@@ -518,7 +523,7 @@
 }
 .scene-viewport:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary) inset;
+  box-shadow: 0 0 0 0.125rem var(--color-primary) inset;
 }
 
 /* gentle sway uses the standalone `rotate` property so it never fights the
@@ -545,13 +550,13 @@
   0%,
   100% {
     box-shadow:
-      0 0 12px 3px rgba(255, 214, 94, 0.4),
-      0 0 34px 10px rgba(255, 200, 80, 0.18);
+      0 0 0.75rem 0.1875rem rgba(255, 214, 94, 0.4),
+      0 0 2.125rem 0.625rem rgba(255, 200, 80, 0.18);
   }
   50% {
     box-shadow:
-      0 0 20px 7px rgba(255, 214, 94, 0.6),
-      0 0 52px 16px rgba(255, 200, 80, 0.3);
+      0 0 1.25rem 0.4375rem rgba(255, 214, 94, 0.6),
+      0 0 3.25rem 1rem rgba(255, 200, 80, 0.3);
   }
 }
 
@@ -611,7 +616,7 @@
 /* floating particles */
 .particle {
   position: absolute;
-  border-radius: 9999px;
+  border-radius: 9999rem;
   will-change: transform;
   animation: pollenDrift 12s ease-in-out infinite alternate;
 }
@@ -620,17 +625,17 @@
 }
 .firefly {
   background: radial-gradient(circle at 35% 35%, #fff8cf, #ffce5c 75%);
-  box-shadow: 0 0 9px 3px rgba(255, 210, 100, 0.6);
+  box-shadow: 0 0 0.5625rem 0.1875rem rgba(255, 210, 100, 0.6);
   animation:
     pollenDrift 14s ease-in-out infinite alternate,
     fireflyPulse 1.3s ease-in-out infinite alternate;
 }
 @keyframes pollenDrift {
   from {
-    transform: translate(calc(var(--drift, 1) * 0px), 0);
+    transform: translate(calc(var(--drift, 1) * 0rem), 0);
   }
   to {
-    transform: translate(calc(var(--drift, 1) * 30px), -46px);
+    transform: translate(calc(var(--drift, 1) * 1.875rem), -2.875rem);
   }
 }
 @keyframes fireflyPulse {
@@ -646,10 +651,10 @@
 .bird {
   display: block;
   position: absolute;
-  left: -50px;
-  top: 190px;
-  width: 34px;
-  height: 26px;
+  left: -3.125rem;
+  top: 11.875rem;
+  width: 2.125rem;
+  height: 1.625rem;
   opacity: 0;
   animation: birdPass 40s linear 14s infinite;
 }
@@ -657,26 +662,26 @@
   content: "";
   position: absolute;
   left: 0;
-  top: 11px;
-  width: 30px;
-  height: 11px;
+  top: 0.6875rem;
+  width: 1.875rem;
+  height: 0.6875rem;
   border-radius: 50%;
   background: #5a3d22;
 }
 .bird::after {
   content: "";
   position: absolute;
-  left: 16px;
-  top: 2px;
-  width: 16px;
-  height: 12px;
+  left: 1rem;
+  top: 0.125rem;
+  width: 1rem;
+  height: 0.75rem;
   border-radius: 60% 12% 60% 40%;
   background: #7a5a38;
   transform: rotate(-12deg);
 }
 @keyframes birdPass {
   0% {
-    transform: translate(-8vw, 4px);
+    transform: translate(-8vw, 0.25rem);
     opacity: 0;
   }
   4% {
@@ -686,7 +691,7 @@
     opacity: 1;
   }
   100% {
-    transform: translate(116vw, -40px);
+    transform: translate(116vw, -2.5rem);
     opacity: 0;
   }
 }
@@ -763,13 +768,27 @@
     height: auto;
     padding-bottom: 0;
     aspect-ratio: 16 / 9;
-    max-height: 58dvh;
+    max-height: 52dvh;
   }
 }
-@media (min-width: 1536px) {
+@media (min-width: 48rem) {
   @supports (aspect-ratio: 16 / 9) {
     .tv-video-player__stage {
-      max-height: 72dvh;
+      max-height: 62dvh;
+    }
+  }
+}
+@media (min-width: 64rem) {
+  @supports (aspect-ratio: 16 / 9) {
+    .tv-video-player__stage {
+      max-height: 68dvh;
+    }
+  }
+}
+@media (min-width: 100rem) {
+  @supports (aspect-ratio: 16 / 9) {
+    .tv-video-player__stage {
+      max-height: 74dvh;
     }
   }
 }
@@ -800,7 +819,7 @@
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 9999rem;
   cursor: pointer;
 }
 .tv-video-player__center-button {
@@ -917,10 +936,10 @@
 .tv-video-player:focus,
 .tv-video-player button:focus,
 .tv-video-player input:focus {
-  outline: 3px solid #f2b46e;
-  outline-offset: 2px;
+  outline: 0.1875rem solid #f2b46e;
+  outline-offset: 0.125rem;
 }
-@media (min-width: 1280px) {
+@media (min-width: 80rem) {
   .tv-video-player {
     border-radius: 1.25rem;
   }
@@ -950,29 +969,49 @@
     height: 2.5rem;
   }
 }
-
-/* Device-aware reading size.
-   Desktops and laptops keep the Tailwind rem scale: bumping `:root` by width
-   inflated every rem-based size (header, nav, cards, dialogs) and produced
-   horizontal overflow on normal screens. The extra size a living-room
-   television needs is applied only when the browser reports a coarse pointer
-   with no hover, i.e. a TV/remote and not a mouse-driven desktop. Legacy TV
-   engines get their own copy of these sizes in legacy-tv.css, scoped to
-   [data-tv-legacy="true"]. */
-@media (min-width: 1280px) and (hover: none) and (pointer: coarse) {
-  :root {
-    font-size: 17px;
+@media (min-width: 100rem) {
+  .tv-video-player__controls {
+    min-height: 5rem;
+    gap: 1.125rem;
+    padding: 0.95rem 1.35rem;
+  }
+  .tv-video-player__control-button {
+    width: 3.75rem;
+    height: 3.75rem;
+  }
+  .tv-video-player__control-button svg {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+  .tv-video-player__time {
+    min-width: 8rem;
+    font-size: 1.125rem;
+  }
+  .tv-video-player__center-button {
+    width: 6.25rem;
+    height: 6.25rem;
+  }
+  .tv-video-player__center-icon {
+    width: 2.875rem;
+    height: 2.875rem;
   }
 }
 
-@media (min-width: 1600px) and (hover: none) and (pointer: coarse) {
+/* Device-aware reading size for living-room TV remotes */
+@media (min-width: 80rem) and (hover: none) and (pointer: coarse) {
   :root {
-    font-size: 18px;
+    font-size: 106.25%;
   }
 }
 
-@media (min-width: 2200px) and (hover: none) and (pointer: coarse) {
+@media (min-width: 100rem) and (hover: none) and (pointer: coarse) {
   :root {
-    font-size: 20px;
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 137.5rem) and (hover: none) and (pointer: coarse) {
+  :root {
+    font-size: 125%;
   }
 }

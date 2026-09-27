@@ -151,8 +151,8 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
         </button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[92dvh] w-[94vw] max-w-2xl overflow-y-auto rounded-2xl border-border/80 bg-card p-0 shadow-2xl 2xl:max-w-6xl [&>button:last-child]:right-3 [&>button:last-child]:top-3 [&>button:last-child]:size-10 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/65 [&>button:last-child]:text-white [&>button:last-child]:opacity-90 [&>button:last-child]:backdrop-blur-md [&>button:last-child]:hover:bg-black/80 sm:[&>button:last-child]:right-4 sm:[&>button:last-child]:top-4">
-        <div className="relative flex max-h-[58dvh] w-full items-center justify-center overflow-hidden bg-black/95 2xl:max-h-[72dvh]">
+      <DialogContent className="max-h-[92dvh] w-[94vw] max-w-[min(94vw,42rem)] sm:max-w-[min(92vw,52rem)] lg:max-w-[min(90vw,64rem)] xl:max-w-[min(88vw,76rem)] 2xl:max-w-[min(85vw,90rem)] overflow-y-auto rounded-2xl border-border/80 bg-card p-0 shadow-2xl [&>button:last-child]:right-3 [&>button:last-child]:top-3 [&>button:last-child]:size-10 [&>button:last-child]:rounded-full [&>button:last-child]:bg-black/65 [&>button:last-child]:text-white [&>button:last-child]:opacity-90 [&>button:last-child]:backdrop-blur-md [&>button:last-child]:hover:bg-black/80 sm:[&>button:last-child]:right-4 sm:[&>button:last-child]:top-4">
+        <div className="relative flex max-h-[52dvh] sm:max-h-[62dvh] lg:max-h-[68dvh] 2xl:max-h-[74dvh] w-full items-center justify-center overflow-hidden bg-black/95">
           {isVideo ? (
             <Suspense
               fallback={
@@ -169,7 +169,7 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
               alt={title}
               loading="lazy"
               decoding="async"
-              className="max-h-[58dvh] w-full object-contain 2xl:max-h-[72dvh]"
+              className="max-h-[52dvh] sm:max-h-[62dvh] lg:max-h-[68dvh] 2xl:max-h-[74dvh] w-full object-contain"
             />
           )}
         </div>
@@ -207,7 +207,7 @@ function ItemCard({ item, allCategories }: { item: GalleryItem; allCategories: s
                 value={item.category}
                 disabled={moving}
                 onChange={(event) => handleMove(event.target.value)}
-                className="h-10 min-w-0 w-full rounded-lg border border-input bg-background px-3 text-xs font-medium text-foreground shadow-sm transition focus:border-primary focus:ring-1 focus:ring-primary sm:w-auto sm:min-w-[220px] 2xl:h-12 2xl:text-base"
+                className="h-10 min-w-0 w-full rounded-lg border border-input bg-background px-3 text-xs font-medium text-foreground shadow-sm transition focus:border-primary focus:ring-1 focus:ring-primary sm:w-auto sm:min-w-[13.75rem] 2xl:h-12 2xl:text-base"
               >
                 {allCategories.map((category) => (
                   <option key={category} value={category}>
@@ -424,7 +424,7 @@ function GalleryPage() {
           </div>
         </div>
 
-        <div className="no-scrollbar sticky top-16 z-30 flex gap-2 overflow-x-auto border-y border-border/60 bg-background/90 px-5 py-3 backdrop-blur-xl sm:px-8 2xl:top-20 2xl:px-12 2xl:py-4">
+        <div className="no-scrollbar sticky top-16 z-30 flex gap-2 overflow-x-auto border-y border-border/60 bg-background/90 px-5 py-3 backdrop-blur-xl sm:px-8 md:justify-center 2xl:top-20 2xl:px-12 2xl:py-4">
           {["All", ...categories.map((category) => category.name)].map((name) => (
             <button
               key={name}

@@ -97,7 +97,7 @@ function RelativesPage() {
             }
           />
         </div>
-        <div className="no-scrollbar my-4 flex gap-2 overflow-auto">
+        <div className="no-scrollbar my-4 flex gap-2 overflow-auto sm:justify-center">
           {groups.map((g) => (
             <button
               key={g}
@@ -132,17 +132,19 @@ function RelativesPage() {
                     </p>
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-sm 2xl:max-w-3xl">
-                  <img
-                    src={relativeImageUrl(person.image)}
-                    alt=""
-                    width={1200}
-                    height={912}
-                    loading="lazy"
-                    decoding="async"
-                    onError={applyImageFallback}
-                    className="max-h-[60vh] w-full rounded-lg bg-background object-contain"
-                  />
+                <DialogContent className="max-h-[90dvh] w-[94vw] max-w-md overflow-y-auto sm:max-w-lg md:max-w-xl 2xl:max-w-3xl rounded-2xl border-border/80 bg-card shadow-2xl p-5 sm:p-6 2xl:p-8">
+                  <div className="relative flex max-h-[45dvh] sm:max-h-[52dvh] 2xl:max-h-[60dvh] w-full items-center justify-center overflow-hidden rounded-xl bg-background/50">
+                    <img
+                      src={relativeImageUrl(person.image)}
+                      alt=""
+                      width={1200}
+                      height={912}
+                      loading="lazy"
+                      decoding="async"
+                      onError={applyImageFallback}
+                      className="max-h-[45dvh] sm:max-h-[52dvh] 2xl:max-h-[60dvh] w-full rounded-xl object-contain"
+                    />
+                  </div>
                   <DialogTitle className="font-display text-3xl">{person.name}</DialogTitle>
                   <p className="text-sm font-semibold text-primary">{person.relationship}</p>
                   <DialogDescription className="leading-6">{person.bio}</DialogDescription>

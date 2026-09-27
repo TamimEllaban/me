@@ -50,7 +50,7 @@ function PersonCard({ person, onOpen }: { person: FamilyPerson; onOpen: (id: str
       className="flex h-full w-full flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-2.5 text-center shadow-soft transition hover:border-primary/50 active:scale-[.97] focus-visible:ring-2 focus-visible:ring-primary"
     >
       <Avatar person={person} />
-      <b className="font-display text-[13px] font-semibold leading-tight text-foreground line-clamp-1">
+      <b className="font-display text-[0.8125rem] font-semibold leading-tight text-foreground line-clamp-1">
         {person.name}
       </b>
       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.65rem] font-semibold text-primary">
@@ -82,7 +82,7 @@ function CoupleCard({ couple, onOpen }: { couple: FamilyCouple; onOpen: (id: str
         >
           <Avatar person={p} className="size-12 sm:size-14 rounded-full object-cover shrink-0" />
           <span className="min-w-0 flex-1 text-right">
-            <b className="block truncate font-display text-[14px] font-semibold text-foreground">
+            <b className="block truncate font-display text-[0.875rem] font-semibold text-foreground">
               {p.name}
             </b>
             <span className="mt-0.5 block text-xs text-muted-foreground">{p.role}</span>

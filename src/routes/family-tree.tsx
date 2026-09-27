@@ -12,7 +12,7 @@ import { getFamilyData } from "@/lib/gate.functions";
 type FamilyTreeView = "scene" | "cards" | "list";
 
 function initialView(): FamilyTreeView {
-  if (typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) {
+  if (typeof window !== "undefined" && window.matchMedia("(max-width: 63.9375rem)").matches) {
     return "cards";
   }
   return "scene";
@@ -84,7 +84,7 @@ function FamilyTreePage() {
         text="شجرة حيّة بتنمو من الجذور لحد التاج: تميم في النور فوق، وبابا وماما، والجدود، والعمام والخالات، وأولادهم — كل واحد منّا مخضوب على فرع أو جذر. اضغط أي صورة تشوف بطاقتها. جرب طريقة العرض اللي تناسبك: الشجرة الكبيرة للموبيل والديسكتوب، أو الكروت، أو القائمة."
       />
 
-      <div className="mx-auto mt-1 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 sm:px-8 2xl:px-12">
+      <div className="mx-auto mt-1 flex w-full max-w-5xl flex-wrap items-center justify-center gap-3 px-5 sm:justify-between sm:px-8 2xl:px-12">
         <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 shadow-soft 2xl:p-1.5">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = view === id;

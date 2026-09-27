@@ -1570,7 +1570,7 @@ function GalleryOrganizer({
                   value={item.category}
                   disabled={movingId === item.id}
                   onChange={(e) => handleMove(item.id, e.target.value)}
-                  className="h-7 w-full max-w-[170px] truncate rounded border border-input bg-card px-2 text-[0.72rem] font-medium text-foreground transition focus:ring-1 focus:ring-primary"
+                  className="h-7 w-full max-w-[10.625rem] truncate rounded border border-input bg-card px-2 text-[0.72rem] font-medium text-foreground transition focus:ring-1 focus:ring-primary"
                 >
                   {categories.map((c) => (
                     <option key={c} value={c}>

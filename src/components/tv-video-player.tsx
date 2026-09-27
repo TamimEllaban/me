@@ -123,7 +123,7 @@ export function TvVideoPlayer({
           observer.disconnect();
         }
       },
-      { rootMargin: "320px" },
+      { rootMargin: "25%" },
     );
     observer.observe(player);
     return () => observer.disconnect();

@@ -32,7 +32,7 @@ function PersonButton({ person, onClick }: { person: FamilyPerson; onClick: () =
           </span>
         )}
       </span>
-      <b className="font-display text-[15px] font-semibold leading-tight text-foreground">
+      <b className="font-display text-[0.9375rem] font-semibold leading-tight text-foreground">
         {person.name}
       </b>
       <span className="text-xs text-muted-foreground">{person.role}</span>

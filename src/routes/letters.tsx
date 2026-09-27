@@ -165,13 +165,15 @@ function LettersPage() {
             })}
           </div>
           <Dialog>
-            <DialogTrigger asChild>
-              <Button className="mt-7 h-12 w-full" size="lg">
-                <Plus />
-                Write a new letter
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[88svh] overflow-y-auto sm:max-w-lg 2xl:max-w-2xl">
+            <div className="mt-7 flex justify-center">
+              <DialogTrigger asChild>
+                <Button className="h-12 w-full sm:w-auto sm:min-w-[16rem]" size="lg">
+                  <Plus />
+                  Write a new letter
+                </Button>
+              </DialogTrigger>
+            </div>
+            <DialogContent className="max-h-[88svh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto sm:w-full sm:max-w-xl 2xl:max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="font-display text-3xl">A letter for later</DialogTitle>
                 <DialogDescription>

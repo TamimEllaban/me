@@ -26,7 +26,7 @@ export const CoupleOrnament = memo(function CoupleOrnament({
       }}
       aria-hidden="true"
     >
-      <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-[11px] leading-none text-white shadow-[0_3px_7px_rgba(190,30,30,0.4)] ring-1 ring-white/70">
+      <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-[0.6875rem] leading-none text-white shadow-[0_0.1875rem_0.4375rem_rgba(190,30,30,0.4)] ring-1 ring-white/70">
         ♥
       </span>
     </span>

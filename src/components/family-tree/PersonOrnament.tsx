@@ -89,7 +89,7 @@ export const PersonOrnament = memo(function PersonOrnament({
         )}
 
         <span
-          className={`relative block rounded-full bg-gradient-to-br p-[2.5px] shadow-[0_4px_10px_rgba(80,40,10,0.35)] ring-1 ring-black/10 transition-transform duration-200 group-hover:scale-105 group-active:scale-95 ${
+          className={`relative block rounded-full bg-gradient-to-br p-[0.15625rem] shadow-[0_0.25rem_0.625rem_rgba(80,40,10,0.35)] ring-1 ring-black/10 transition-transform duration-200 group-hover:scale-105 group-active:scale-95 ${
             isTamim ? `${ring} gem-breathe` : ring
           }`}
         >
@@ -115,7 +115,7 @@ export const PersonOrnament = memo(function PersonOrnament({
         </span>
 
         <span className="mt-1 max-w-[7.5rem] rounded-md bg-[#fff8ea] px-1.5 py-0.5 text-center shadow-sm ring-1 ring-black/5 [line-clamp:2]">
-          <b className="block font-display text-[15px] font-semibold leading-tight text-stone-900">
+          <b className="block font-display text-[0.9375rem] font-semibold leading-tight text-stone-900">
             {name}
           </b>
           <span className="block text-xs leading-tight text-stone-600">{role}</span>

@@ -124,9 +124,9 @@ export function WorldShell({
       <main className="site-main mx-auto max-w-[100rem] pb-28 md:pb-12 2xl:pb-28">{children}</main>
       <nav
         aria-label="Main navigation"
-        className="site-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:left-1/2 md:bottom-5 md:w-fit md:-translate-x-1/2 md:rounded-full md:border md:px-2 md:shadow-keepsake 2xl:bottom-6 2xl:rounded-[2rem] 2xl:px-3"
+        className="site-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:left-1/2 md:bottom-5 md:w-fit md:max-w-[calc(100vw-2rem)] md:-translate-x-1/2 md:rounded-full md:border md:px-2 md:shadow-keepsake 2xl:bottom-6 2xl:rounded-[2rem] 2xl:px-3"
       >
-        <div className="site-nav-inner mx-auto grid h-[4.75rem] max-w-lg grid-cols-6 md:h-16 md:w-[38rem] 2xl:h-24 2xl:w-[76rem]">
+        <div className="site-nav-inner mx-auto grid h-[4.75rem] max-w-lg grid-cols-6 md:h-16 md:w-[38rem] md:max-w-[calc(100vw-3rem)] 2xl:h-24 2xl:w-[min(76rem,90vw)]">
           {tabs.map(({ to, label, icon: Icon }) => {
             const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
             return (
