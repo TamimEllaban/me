@@ -243,11 +243,22 @@ export default defineConfig({
       "/assets/polyfills-legacy.js": {
         headers: { "cache-control": "public, max-age=0, must-revalidate" },
       },
-      "/favicon.svg": {
-        headers: { "cache-control": "public, max-age=86400, must-revalidate" },
-      },
+      // Home-screen shortcuts cache the icon for a long time, so the icon files
+      // must never be served stale from a CDN/browser cache after a rebrand.
       "/favicon.ico": {
-        headers: { "cache-control": "public, max-age=86400, must-revalidate" },
+        headers: { "cache-control": "public, max-age=0, must-revalidate" },
+      },
+      "/favicon-192x192.png": {
+        headers: { "cache-control": "public, max-age=0, must-revalidate" },
+      },
+      "/apple-touch-icon.png": {
+        headers: { "cache-control": "public, max-age=0, must-revalidate" },
+      },
+      "/site.webmanifest": {
+        headers: {
+          "cache-control": "public, max-age=0, must-revalidate",
+          "content-type": "application/manifest+json; charset=utf-8",
+        },
       },
       "/robots.txt": {
         headers: { "cache-control": "public, max-age=3600, must-revalidate" },
